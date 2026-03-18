@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Seiva — Painel Admin</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="navbar-inner">
+      <a href="app.html" class="navbar-brand">
+        <div class="navbar-brand-icon">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 11 Q7 3 11 11" stroke="white" stroke-width="1.5" stroke-linecap="round" fill="none"/><circle cx="7" cy="6" r="1.2" fill="white"/></svg>
+        </div>
+        <div>
+          <span class="brand-name">Seiva</span>
+          <span class="brand-sub">Painel Admin</span>
+        </div>
+      </a>
+      <div class="navbar-user">
+        <div class="user-badge">
+          <div class="user-avatar" id="user-avatar">–</div>
+          <div class="user-info">
+            <div class="user-name" id="user-name">–</div>
+            <div class="user-role" id="user-role">–</div>
+          </div>
+        </div>
+        <a href="app.html" class="btn btn-secondary btn-sm">← Calendário</a>
+        <button class="btn btn-ghost btn-sm" id="btn-logout">Sair</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Admin Layout -->
+  <div class="admin-layout">
+
+    <!-- Tabs -->
+    <div class="tabs" style="margin-bottom:0">
+      <div class="tab active" data-tab="clients">Clientes & Cotas</div>
+      <div class="tab" data-tab="bookings">Anúncios</div>
+      <div class="tab" data-tab="dates">Datas Bloqueadas</div>
+    </div>
+
+    <!-- Tab: Clients & Quotas -->
+    <div class="tab-panel active" id="tab-clients">
+      <div class="section-header">
+        <h2>Clientes</h2>
+        <button class="btn btn-primary" id="btn-new-client">+ Novo Cliente</button>
+      </div>
+
+      <div class="card" style="margin-bottom:1.5rem">
+        <div class="table-wrap">
+          <table id="clients-table">
+            <thead>
+              <tr>
+                <th>Empresa</th>
+                <th>Código de Acesso</th>
+                <th>Email</th>
+                <th>Status</th>
+                <th>Cotas</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="clients-tbody">
+              <tr><td colspan="6" class="text-muted" style="text-align:center;padding:2rem">Carregando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Quotas for selected client -->
+      <div id="client-quotas-section" style="display:none">
+        <div class="section-header">
+          <h2 id="client-quotas-title">Cotas</h2>
+          <button class="btn btn-secondary" id="btn-new-quota">+ Nova Cota</button>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Newsletter</th>
+                  <th>Formato</th>
+                  <th>Total</th>
+                  <th>Utilizados</th>
+                  <th>Restante</th>
+                  <th>Validade</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="quotas-tbody">
+                <tr><td colspan="7" class="text-muted" style="text-align:center;padding:1.5rem">Selecione um cliente acima.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: Bookings -->
+    <div class="tab-panel" id="tab-bookings">
+      <div class="section-header">
+        <h2>Todos os Anúncios</h2>
+        <div class="flex gap-sm" style="flex-wrap:wrap">
+          <select class="form-control" id="filter-status" style="width:auto">
+            <option value="">Todos os status</option>
+            <option value="rascunho">Rascunho</option>
+            <option value="pendente">Pendente</option>
+            <option value="aprovado">Aprovado</option>
+            <option value="rejeitado">Rejeitado</option>
+          </select>
+          <select class="form-control" id="filter-nl" style="width:auto">
+            <option value="">Todas newsletters</option>
+            <option value="aurora">Aurora</option>
+            <option value="indice">Índice</option>
+          </select>
+          <select class="form-control" id="filter-client" style="width:auto">
+            <option value="">Todos os clientes</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="table-wrap">
+          <table id="bookings-table">
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Newsletter</th>
+                <th>Formato</th>
+                <th>Campanha</th>
+                <th>Cliente</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="bookings-tbody">
+              <tr><td colspan="7" class="text-muted" style="text-align:center;padding:2rem">Carregando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: Blocked Dates -->
+    <div class="tab-panel" id="tab-dates">
+      <div class="section-header">
+        <h2>Datas Bloqueadas</h2>
+        <button class="btn btn-primary" id="btn-new-blocked">+ Bloquear Data</button>
+      </div>
+
+      <div class="alert alert-info mb">
+        Feriados nacionais brasileiros já são bloqueados automaticamente pelo sistema. Aqui você pode adicionar bloqueios extras ou liberar um feriado específico.
+      </div>
+
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Motivo</th>
+                <th>Tipo</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="blocked-dates-tbody">
+              <tr><td colspan="4" class="text-muted" style="text-align:center;padding:2rem">Carregando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Modal: Client Form -->
+  <div class="modal-overlay" id="client-modal">
+    <div class="modal" style="max-width:480px">
+      <div class="modal-header">
+        <span class="modal-title" id="client-modal-title">Novo Cliente</span>
+        <button class="modal-close" id="client-modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <form id="client-form" novalidate>
+          <div class="form-group mb-sm">
+            <label class="form-label">Nome da Empresa <span style="color:var(--red)">*</span></label>
+            <input type="text" class="form-control" id="c-company" placeholder="Ex: Editora Alfa" required />
+          </div>
+          <div class="form-group mb-sm">
+            <label class="form-label">Código de Acesso <span style="color:var(--red)">*</span></label>
+            <div class="flex gap-sm">
+              <input type="text" class="form-control" id="c-code" placeholder="Ex: ALFA-2025" autocapitalize="characters" style="text-transform:uppercase" required />
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-gen-code">Gerar</button>
+            </div>
+            <span class="form-hint">Código único para o cliente fazer login</span>
+          </div>
+          <div class="form-group mb-sm">
+            <label class="form-label">Email de contato</label>
+            <input type="email" class="form-control" id="c-email" placeholder="contato@empresa.com" />
+          </div>
+          <div class="form-group mb-sm">
+            <label class="form-label">Notas internas</label>
+            <textarea class="form-control" id="c-notes" rows="2"></textarea>
+          </div>
+          <div class="form-group mb-sm">
+            <label class="form-label" style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
+              <input type="checkbox" id="c-active" checked />
+              Cliente ativo
+            </label>
+          </div>
+          <div id="client-error" class="alert alert-error" style="display:none"></div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-client-cancel">Cancelar</button>
+        <button class="btn btn-primary" id="btn-client-save">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Quota Form -->
+  <div class="modal-overlay" id="quota-modal">
+    <div class="modal" style="max-width:420px">
+      <div class="modal-header">
+        <span class="modal-title" id="quota-modal-title">Nova Cota</span>
+        <button class="modal-close" id="quota-modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <form id="quota-form" novalidate>
+          <div class="form-group mb-sm">
+            <label class="form-label">Newsletter <span style="color:var(--red)">*</span></label>
+            <select class="form-control" id="q-newsletter" required>
+              <option value="">Selecione...</option>
+              <option value="aurora">Aurora</option>
+              <option value="indice">Índice</option>
+              <option value="ambas">Ambas</option>
+            </select>
+          </div>
+          <div class="form-group mb-sm">
+            <label class="form-label">Formato <span style="color:var(--red)">*</span></label>
+            <select class="form-control" id="q-format" required>
+              <option value="">Selecione...</option>
+              <option value="destaque">Destaque</option>
+              <option value="corpo">Corpo do Email</option>
+              <option value="ambos">Ambos</option>
+            </select>
+          </div>
+          <div class="form-group mb-sm">
+            <label class="form-label">Total de Slots <span style="color:var(--red)">*</span></label>
+            <input type="number" class="form-control" id="q-total" min="1" max="999" placeholder="Ex: 4" required />
+          </div>
+          <div class="form-group mb-sm">
+            <label class="form-label">Validade (opcional)</label>
+            <input type="date" class="form-control" id="q-expires" />
+          </div>
+          <div class="form-group mb-sm">
+            <label class="form-label">Notas</label>
+            <input type="text" class="form-control" id="q-notes" placeholder="Ex: Pacote trimestral" />
+          </div>
+          <div id="quota-error" class="alert alert-error" style="display:none"></div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-quota-cancel">Cancelar</button>
+        <button class="btn btn-primary" id="btn-quota-save">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Blocked Date Form -->
+  <div class="modal-overlay" id="blocked-modal">
+    <div class="modal" style="max-width:400px">
+      <div class="modal-header">
+        <span class="modal-title">Bloquear Data</span>
+        <button class="modal-close" id="blocked-modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <form id="blocked-form" novalidate>
+          <div class="form-group mb-sm">
+            <label class="form-label">Data <span style="color:var(--red)">*</span></label>
+            <input type="date" class="form-control" id="bd-date" required />
+          </div>
+          <div class="form-group mb-sm">
+            <label class="form-label">Motivo</label>
+            <input type="text" class="form-control" id="bd-reason" placeholder="Ex: Recesso de fim de ano" />
+          </div>
+          <div class="form-group mb-sm">
+            <label class="form-label" style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
+              <input type="checkbox" id="bd-is-holiday" />
+              Feriado nacional
+            </label>
+          </div>
+          <div id="blocked-error" class="alert alert-error" style="display:none"></div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-blocked-cancel">Cancelar</button>
+        <button class="btn btn-primary" id="btn-blocked-save">Bloquear</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Booking Edit (admin) -->
+  <div class="modal-overlay" id="booking-edit-modal">
+    <div class="modal" style="max-width:520px">
+      <div class="modal-header">
+        <span class="modal-title" id="be-title">Editar Anúncio</span>
+        <button class="modal-close" id="be-modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <form id="booking-edit-form" novalidate>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Status</label>
+              <select class="form-control" id="be-status">
+                <option value="rascunho">Rascunho</option>
+                <option value="pendente">Pendente</option>
+                <option value="aprovado">Aprovado</option>
+                <option value="rejeitado">Rejeitado</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Data</label>
+              <input type="date" class="form-control" id="be-date" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Newsletter</label>
+              <select class="form-control" id="be-newsletter">
+                <option value="aurora">Aurora</option>
+                <option value="indice">Índice</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Formato</label>
+              <select class="form-control" id="be-format">
+                <option value="destaque">Destaque</option>
+                <option value="corpo">Corpo do Email</option>
+              </select>
+            </div>
+            <div class="form-group full">
+              <label class="form-label">Notas internas</label>
+              <textarea class="form-control" id="be-admin-notes" rows="3"></textarea>
+            </div>
+          </div>
+          <div id="be-error" class="alert alert-error mt" style="display:none"></div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-danger btn-sm" id="btn-be-delete" style="margin-right:auto">Excluir</button>
+        <button class="btn btn-secondary" id="btn-be-cancel">Cancelar</button>
+        <button class="btn btn-primary" id="btn-be-save">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="loading-overlay" id="loading" style="display:none">
+    <div class="spinner"></div>
+    Aguarde...
+  </div>
+
+  <script type="module" src="admin.js?v=2"></script>
+</body>
+</html>

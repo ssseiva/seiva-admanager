@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Seiva — Gestão de Anúncios</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="login-bg">
+  <div class="page-center">
+    <div class="login-card">
+      <div class="login-brand">
+        <div class="login-logo-mark">
+          <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+            <circle cx="18" cy="18" r="18" fill="#16a34a"/>
+            <path d="M11 25 Q18 9 25 25" stroke="white" stroke-width="2.8" stroke-linecap="round" fill="none"/>
+            <circle cx="18" cy="15" r="2.5" fill="white"/>
+          </svg>
+        </div>
+        <div class="login-brand-text">
+          <span class="login-brand-name">Seiva</span>
+          <span class="login-brand-sub">Gestão de Anúncios</span>
+        </div>
+      </div>
+
+      <form id="form-login">
+        <div class="form-group mb">
+          <label class="form-label" for="login-username">Usuário</label>
+          <input
+            type="text"
+            class="form-control"
+            id="login-username"
+            placeholder="seu usuário"
+            autocomplete="username"
+            autocapitalize="none"
+            spellcheck="false"
+            required
+          />
+        </div>
+        <div class="form-group mb">
+          <label class="form-label" for="login-password">Senha</label>
+          <input
+            type="password"
+            class="form-control"
+            id="login-password"
+            placeholder="••••••••"
+            autocomplete="current-password"
+            required
+          />
+        </div>
+        <div id="error-login" class="alert alert-error mb" style="display:none"></div>
+        <button type="submit" class="btn btn-primary btn-block btn-lg" id="btn-login">
+          Entrar
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <script type="module" src="login.js?v=3"></script>
+</body>
+</html>

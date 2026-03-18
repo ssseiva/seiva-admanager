@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Seiva — Calendário de Anúncios</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" />
+  <style>
+    html, body { height: 100%; overflow: hidden; }
+  </style>
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="navbar-inner">
+      <a href="app.html" class="navbar-brand">
+        <div class="navbar-brand-icon">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 11 Q7 3 11 11" stroke="white" stroke-width="1.5" stroke-linecap="round" fill="none"/><circle cx="7" cy="6" r="1.2" fill="white"/></svg>
+        </div>
+        <div>
+          <span class="brand-name">Seiva</span>
+          <span class="brand-sub">Gestão de Anúncios</span>
+        </div>
+      </a>
+
+      <div class="navbar-controls">
+        <!-- View toggle -->
+        <div class="view-toggle" id="view-toggle">
+          <button class="view-btn active" data-view="calendar">📅 Calendário</button>
+          <button class="view-btn" data-view="list">☰ Lista</button>
+        </div>
+        <!-- Filtro de newsletter (só no calendário) -->
+        <div class="nl-filter" id="nl-filter">
+          <button class="nl-pill nl-pill-all active" data-nl="all">Todas</button>
+          <button class="nl-pill nl-pill-aurora" data-nl="aurora">Aurora</button>
+          <button class="nl-pill nl-pill-indice" data-nl="indice">Índice</button>
+        </div>
+      </div>
+
+      <div class="navbar-user">
+        <div class="user-badge">
+          <div class="user-avatar" id="user-avatar">–</div>
+          <div class="user-info">
+            <div class="user-name" id="user-name">–</div>
+            <div class="user-role" id="user-role">–</div>
+          </div>
+        </div>
+        <button class="btn btn-ghost btn-sm" id="btn-admin" style="display:none">
+          ⚙ Admin
+        </button>
+        <button class="btn btn-ghost btn-sm" id="btn-logout">Sair</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- List View -->
+  <div id="list-view" style="display:none">
+    <div class="list-view-layout">
+
+      <!-- Form panel -->
+      <div class="lv-form-panel card">
+        <div class="card-header">
+          <h3 id="lv-form-title">Novo Anúncio</h3>
+          <div id="lv-success" class="lv-success-msg" style="display:none">✓ Anúncio salvo!</div>
+        </div>
+        <div class="card-body">
+          <form id="lv-form" novalidate>
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="form-label" for="lv-date">Data <span class="req">*</span></label>
+                <input type="date" class="form-control" id="lv-date" required />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="lv-newsletter">Newsletter <span class="req">*</span></label>
+                <select class="form-control" id="lv-newsletter" required>
+                  <option value="">Selecione...</option>
+                  <option value="aurora">Aurora</option>
+                  <option value="indice">Índice</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="lv-format">Formato <span class="req">*</span></label>
+                <select class="form-control" id="lv-format" required>
+                  <option value="">Selecione...</option>
+                  <option value="destaque">Destaque</option>
+                  <option value="corpo">Corpo do Email</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="lv-campaign-name">Título da Campanha <span class="req">*</span></label>
+                <input type="text" class="form-control" id="lv-campaign-name" placeholder="Ex: Lançamento Produto X" required />
+              </div>
+              <div class="form-group full">
+                <label class="form-label" for="lv-authorship">Autoria <span class="req">*</span></label>
+                <input type="text" class="form-control" id="lv-authorship" placeholder="Nome da empresa ou autor" required />
+              </div>
+              <div class="form-group full">
+                <label class="form-label" for="lv-suggested-text">Texto sugerido <span class="req">*</span></label>
+                <textarea class="form-control" id="lv-suggested-text" rows="4" placeholder="Texto do anúncio (entre 200 e 500 caracteres)" required></textarea>
+                <div class="char-counter" id="lv-char-counter">0 / 500</div>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="lv-cover-link">Link da capa</label>
+                <input type="url" class="form-control" id="lv-cover-link" placeholder="https://..." />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="lv-redirect-link">Link de redirecionamento</label>
+                <input type="url" class="form-control" id="lv-redirect-link" placeholder="https://..." />
+              </div>
+              <div class="form-group full">
+                <label class="form-label" for="lv-promotional-period">Período promocional</label>
+                <input type="text" class="form-control" id="lv-promotional-period" placeholder="Ex: 01/06 a 30/06 (opcional)" />
+              </div>
+            </div>
+            <div id="lv-slot-warning" class="alert alert-warn mt" style="display:none"></div>
+            <div id="lv-quota-info" class="alert alert-info mt" style="display:none"></div>
+            <div id="lv-error" class="alert alert-error mt" style="display:none"></div>
+          </form>
+        </div>
+        <div class="card-footer" style="justify-content:space-between">
+          <button class="btn btn-ghost btn-sm" id="lv-btn-reset">Limpar</button>
+          <div style="display:flex;gap:.5rem">
+            <button class="btn btn-secondary" id="lv-btn-save-continue">Salvar e continuar</button>
+            <button class="btn btn-primary" id="lv-btn-save">Salvar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bookings table -->
+      <div class="lv-table-panel">
+        <div class="section-header">
+          <h3>Seus anúncios</h3>
+        </div>
+        <div class="table-wrap">
+          <table id="lv-table">
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Newsletter</th>
+                <th>Formato</th>
+                <th>Campanha</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="lv-table-body">
+              <tr><td colspan="6" class="empty-state-desc" style="text-align:center;padding:2rem">Nenhum anúncio ainda.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- App Layout -->
+  <div id="calendar-view" class="app-layout">
+
+    <!-- Calendar -->
+    <div class="app-main">
+      <div id="calendar"></div>
+    </div>
+
+    <!-- Sidebar -->
+    <aside class="app-sidebar">
+      <div class="sidebar-header">
+        <h3 id="sidebar-date">Selecione um dia</h3>
+        <p class="text-sm text-muted" id="sidebar-status-text"></p>
+      </div>
+      <div class="sidebar-body" id="sidebar-body">
+        <div class="empty-state">
+          <div class="empty-state-icon">📅</div>
+          <div class="empty-state-title">Nenhum dia selecionado</div>
+          <div class="empty-state-desc">Clique em um dia no calendário para ver os slots disponíveis.</div>
+        </div>
+      </div>
+    </aside>
+
+  </div><!-- end calendar-view -->
+
+  <!-- Modal: Booking Form -->
+  <div class="modal-overlay" id="booking-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title" id="modal-title">Novo Anúncio</span>
+        <button class="modal-close" id="modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <form id="booking-form" novalidate>
+          <div class="form-grid">
+
+            <div class="form-group">
+              <label class="form-label">Data</label>
+              <input type="text" class="form-control" id="f-date" readonly />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Newsletter <span style="color:var(--red)">*</span></label>
+              <select class="form-control" id="f-newsletter" required>
+                <option value="">Selecione...</option>
+                <option value="aurora">Aurora</option>
+                <option value="indice">Índice</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Formato <span style="color:var(--red)">*</span></label>
+              <select class="form-control" id="f-format" required>
+                <option value="">Selecione...</option>
+                <option value="destaque">Destaque</option>
+                <option value="corpo">Corpo do Email</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Título / Nome da Campanha <span style="color:var(--red)">*</span></label>
+              <input type="text" class="form-control" id="f-campaign-name" placeholder="Ex: Lançamento Produto X" required />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Autoria <span style="color:var(--red)">*</span></label>
+              <input type="text" class="form-control" id="f-authorship" placeholder="Nome da empresa ou autor" required />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Campanha</label>
+              <input type="text" class="form-control" id="f-campaign" placeholder="Nome interno da campanha" />
+            </div>
+
+            <div class="form-group full">
+              <label class="form-label">Texto sugerido <span style="color:var(--red)">*</span></label>
+              <textarea class="form-control" id="f-suggested-text" rows="4" placeholder="Texto do anúncio (entre 200 e 500 caracteres)" required></textarea>
+              <div class="char-counter" id="char-counter">0 / 500 caracteres</div>
+            </div>
+
+            <div class="form-group full">
+              <label class="form-label">Período promocional</label>
+              <input type="text" class="form-control" id="f-promotional-period" placeholder="Ex: 01/06/2025 a 30/06/2025 (opcional)" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Link da capa</label>
+              <input type="url" class="form-control" id="f-cover-link" placeholder="https://..." />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Link de redirecionamento</label>
+              <input type="url" class="form-control" id="f-redirect-link" placeholder="https://..." />
+            </div>
+
+          </div>
+
+          <div id="form-slot-warning" class="alert alert-warn mt" style="display:none"></div>
+          <div id="form-error" class="alert alert-error mt" style="display:none"></div>
+          <div id="form-quota-info" class="alert alert-info mt" style="display:none"></div>
+
+          <!-- Admin notes (visible only for admin/redator) -->
+          <div id="admin-notes-section" class="mt" style="display:none">
+            <div class="divider"></div>
+            <div class="form-group">
+              <label class="form-label">Notas internas (admin)</label>
+              <textarea class="form-control" id="f-admin-notes" rows="2" placeholder="Visível apenas para admin e redatores"></textarea>
+            </div>
+            <div class="form-group mt-sm">
+              <label class="form-label">Status</label>
+              <select class="form-control" id="f-status">
+                <option value="rascunho">Rascunho</option>
+                <option value="pendente">Pendente</option>
+                <option value="aprovado">Aprovado</option>
+                <option value="rejeitado">Rejeitado</option>
+              </select>
+            </div>
+          </div>
+
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-danger btn-sm" id="btn-delete-booking" style="display:none; margin-right:auto">
+          Excluir
+        </button>
+        <button class="btn btn-secondary" id="btn-modal-cancel">Cancelar</button>
+        <button class="btn btn-primary" id="btn-modal-save">Salvar Anúncio</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Booking Detail (read-only for clients) -->
+  <div class="modal-overlay" id="detail-modal">
+    <div class="modal" style="max-width:480px">
+      <div class="modal-header">
+        <span class="modal-title" id="detail-modal-title">Detalhe do Anúncio</span>
+        <button class="modal-close" id="detail-modal-close">✕</button>
+      </div>
+      <div class="modal-body" id="detail-modal-body"></div>
+      <div class="modal-footer" id="detail-modal-footer">
+        <button class="btn btn-secondary" id="btn-detail-close">Fechar</button>
+        <button class="btn btn-primary" id="btn-detail-edit" style="display:none">Editar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="loading-overlay" id="loading" style="display:none">
+    <div class="spinner"></div>
+    Carregando...
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+  <script type="module" src="app.js?v=3"></script>
+</body>
+</html>
