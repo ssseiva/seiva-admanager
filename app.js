@@ -668,7 +668,17 @@ function colorNlSel(sel) {
   sel.style.color = v ? 'var(--text)' : 'var(--text-muted)'
 }
 
-function renderSheet() {
+function renderSheet(mode = 'calendar') {
+  // Toggle topbar elements based on mode
+  const isBlank = mode === 'blank'
+  document.getElementById('sheet-prev').style.display  = isBlank ? 'none' : ''
+  document.getElementById('sheet-next').style.display  = isBlank ? 'none' : ''
+  document.getElementById('sheet-month-label').style.display = isBlank ? 'none' : ''
+  if (isBlank) {
+    document.getElementById('sheet-save-count').textContent = ''
+    renderBlankSheet()
+    return
+  }
   const year = sheetMonth.getFullYear()
   const month = sheetMonth.getMonth()
   const monthStr = `${year}-${String(month + 1).padStart(2, '0')}`
@@ -741,6 +751,44 @@ function renderSheet() {
   tbody.addEventListener('input', updateSheetCounter)
 }
 
+function renderBlankSheet() {
+  const NUM = 12
+  const tbody = document.getElementById('sheet-body')
+  tbody.innerHTML = Array.from({ length: NUM }, (_, i) => `
+    <tr class="sh-row" data-date="" data-row="${i}" data-booking-id="">
+      <td class="sh-date-cell"><input type="date" class="sh-input sh-date-picker" data-field="date" /></td>
+      <td><input class="sh-input" data-field="campaign_name" placeholder="Título da campanha" /></td>
+      <td><input class="sh-input" data-field="authorship" placeholder="Autoria" /></td>
+      <td><select class="sh-select sh-nl-sel" data-field="newsletter">
+        <option value="">—</option>
+        <option value="aurora">Aurora</option>
+        <option value="indice">Índice</option>
+      </select></td>
+      <td><select class="sh-select" data-field="format">
+        <option value="">—</option>
+        <option value="destaque">Destaque</option>
+        <option value="corpo">Corpo</option>
+      </select></td>
+      <td><input class="sh-input sh-text-col" data-field="suggested_text" placeholder="Texto do anúncio (200–500 caracteres)" /></td>
+      <td><input class="sh-input sh-link-col" data-field="cover_link" placeholder="https://..." /></td>
+      <td><input class="sh-input sh-link-col" data-field="redirect_link" placeholder="https://..." /></td>
+      <td class="sh-status-cell" id="sh-s-${i}"></td>
+    </tr>`).join('')
+
+  tbody.querySelectorAll('.sh-nl-sel').forEach(sel => {
+    colorNlSel(sel)
+    sel.addEventListener('change', () => colorNlSel(sel))
+  })
+  // Sync date picker value to row's data-date
+  tbody.querySelectorAll('.sh-date-picker').forEach(inp => {
+    inp.addEventListener('change', () => {
+      inp.closest('tr').dataset.date = inp.value
+    })
+  })
+  updateSheetCounter()
+  tbody.addEventListener('input', updateSheetCounter)
+}
+
 function updateSheetCounter() {
   const rows = document.querySelectorAll('#sheet-body .sh-row')
   const n = [...rows].filter(r => {
@@ -764,7 +812,8 @@ document.getElementById('sheet-save-all').addEventListener('click', async () => 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]
     const g = f => row.querySelector(`[data-field="${f}"]`)?.value?.trim() || ''
-    const date = row.dataset.date
+    const datePicker = row.querySelector('[data-field="date"]')
+    const date = datePicker ? datePicker.value : row.dataset.date
     const bookingId = row.dataset.bookingId
     const campaign_name = g('campaign_name')
     const authorship = g('authorship')
@@ -776,10 +825,12 @@ document.getElementById('sheet-save-all').addEventListener('click', async () => 
     const statusEl = document.getElementById(`sh-s-${i}`)
 
     // Skip fully empty rows
-    if (!campaign_name && !newsletter && !format && !suggested_text) continue
+    if (!date && !campaign_name && !newsletter && !format && !suggested_text) continue
 
     // Validate
     const errs = []
+    if (!date) errs.push('Data obrigatória')
+    else if (isDayBlocked(date, allBlockedDates)) errs.push('Data bloqueada ou fim de semana')
     if (!campaign_name) errs.push('Campanha obrigatória')
     if (!authorship) errs.push('Autoria obrigatória')
     if (!newsletter) errs.push('Newsletter obrigatória')
@@ -865,8 +916,143 @@ function isValidUrl(s) {
   try { return /^https?:\/\/./.test(s) } catch { return false }
 }
 
+// ─── View routing ─────────────────────────────────────────────────────────────
+function switchView(view) {
+  currentView = view
+  document.getElementById('dashboard-view').style.display  = view === 'dashboard' ? '' : 'none'
+  document.getElementById('calendar-view').style.display   = view === 'calendar'  ? '' : 'none'
+  document.getElementById('list-view').style.display       = view === 'list'       ? '' : 'none'
+  document.getElementById('nl-filter').style.display       = view === 'calendar'   ? '' : 'none'
+  document.getElementById('btn-inicio').style.display      = isAnunciante && view !== 'dashboard' ? 'inline-flex' : 'none'
+  document.querySelectorAll('.view-btn').forEach(b => b.classList.toggle('active', b.dataset.view === view))
+  if (view === 'list')      renderSheet()
+  if (view === 'dashboard') renderDashboard()
+  if (view === 'calendar')  calendar?.render()
+}
+
+document.getElementById('btn-inicio').addEventListener('click', () => switchView('dashboard'))
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+function renderDashboard() {
+  const myQuotas   = allQuotas.filter(q => String(q.client_id) === String(session.clientId))
+  const myBookings = allBookings.filter(b => String(b.client_id) === String(session.clientId) && b.status !== 'rejeitado')
+  const totalBought    = myQuotas.reduce((s, q) => s + (q.total_slots || 0), 0)
+  const totalUsed      = myBookings.length
+  const totalAvailable = Math.max(0, totalBought - totalUsed)
+
+  // Per-combo breakdown
+  const COMBOS = [
+    { nl: 'aurora', fmt: 'destaque', label: 'Aurora — Destaque' },
+    { nl: 'aurora', fmt: 'corpo',    label: 'Aurora — Corpo do Email' },
+    { nl: 'indice', fmt: 'destaque', label: 'Índice — Destaque' },
+    { nl: 'indice', fmt: 'corpo',    label: 'Índice — Corpo do Email' },
+  ]
+  const comboCards = COMBOS.map(c => {
+    const quota = myQuotas.filter(q =>
+      (q.newsletter === c.nl || q.newsletter === 'ambas') &&
+      (q.format === c.fmt || q.format === 'ambos')
+    )
+    if (!quota.length) return null
+    const total = quota.reduce((s, q) => s + (q.total_slots || 0), 0)
+    const avail = Math.max(0, total - totalUsed)
+    return { ...c, total, avail }
+  }).filter(Boolean)
+
+  // Upcoming bookings (sorted, from today)
+  const today = toISODate(new Date())
+  const upcoming = myBookings
+    .filter(b => b.date >= today)
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(0, 5)
+
+  const name = session.clientName || 'Empresa'
+
+  document.getElementById('dash-content').innerHTML = `
+    <div class="dash-inner">
+      <div class="dash-welcome">
+        <div class="dash-hello">Olá, pessoal da</div>
+        <h1 class="dash-company">${escHtml(name)}</h1>
+        <p class="dash-sub">Bem-vindos ao painel de anúncios da Seiva.</p>
+      </div>
+
+      <div class="dash-section" style="animation-delay:.1s">
+        <div class="dash-section-title">Seus spots disponíveis</div>
+        ${totalBought === 0
+          ? `<p class="dash-empty">Nenhuma cota configurada. Entre em contato com a Seiva.</p>`
+          : `<div class="dash-quota-summary">
+              <span class="dash-quota-big">${totalAvailable}</span>
+              <span class="dash-quota-label">de ${totalBought} spot${totalBought !== 1 ? 's' : ''} restante${totalAvailable !== 1 ? 's' : ''}</span>
+            </div>
+            ${comboCards.length > 1 ? `<div class="dash-cards">
+              ${comboCards.map((c, i) => `
+                <div class="dash-card dash-card-${c.nl}" style="animation-delay:${.15 + i*.07}s">
+                  <div class="dash-card-label">${c.label}</div>
+                  <div class="dash-card-number">${c.avail}</div>
+                  <div class="dash-card-sub">de ${c.total}</div>
+                </div>`).join('')}
+            </div>` : ''}`
+        }
+      </div>
+
+      ${upcoming.length > 0 ? `
+      <div class="dash-section" style="animation-delay:.22s">
+        <div class="dash-section-title">Próximos spots agendados</div>
+        <div class="dash-upcoming">
+          ${upcoming.map(b => {
+            const nl  = NEWSLETTERS[b.newsletter]?.label || b.newsletter
+            const fmt = FORMATS[b.format]?.label        || b.format
+            const st  = BOOKING_STATUS[b.status]        || {}
+            return `<div class="dash-upcoming-row">
+              <span class="dash-upcoming-date">${formatDate(b.date)}</span>
+              <span class="badge badge-${b.newsletter} badge-xs">${nl}</span>
+              <span class="dash-upcoming-fmt">${fmt}</span>
+              <span class="dash-upcoming-name">${escHtml(b.campaign_name || '—')}</span>
+              <span class="badge badge-${b.status} badge-xs">${st.label || b.status}</span>
+            </div>`
+          }).join('')}
+        </div>
+      </div>` : ''}
+
+      <div class="dash-section" style="animation-delay:.3s">
+        <div class="dash-section-title">O que você quer fazer?</div>
+        <div class="dash-action-grid">
+          <button class="dash-action-card" id="dash-single">
+            <div class="dash-action-icon">＋</div>
+            <div class="dash-action-name">Criar um spot</div>
+            <div class="dash-action-desc">Escolha o dia no calendário e preencha o formulário</div>
+          </button>
+          <button class="dash-action-card" id="dash-multi">
+            <div class="dash-action-icon">≡</div>
+            <div class="dash-action-name">Criar vários spots</div>
+            <div class="dash-action-desc">Preencha uma planilha com vários spots de uma vez</div>
+          </button>
+          <button class="dash-action-card" id="dash-calendar">
+            <div class="dash-action-icon">📅</div>
+            <div class="dash-action-name">Ver calendário</div>
+            <div class="dash-action-desc">Visualize todos os slots disponíveis e ocupados</div>
+          </button>
+        </div>
+      </div>
+    </div>
+  `
+
+  document.getElementById('dash-single').addEventListener('click', () => switchView('calendar'))
+  document.getElementById('dash-multi').addEventListener('click', () => {
+    switchView('list')
+    renderSheet('blank')
+  })
+  document.getElementById('dash-calendar').addEventListener('click', () => switchView('calendar'))
+}
+
 // ─── Init ─────────────────────────────────────────────────────────────────────
 ;(async () => {
   await loadData()
   initCalendar()
+  if (isAnunciante) {
+    document.getElementById('view-toggle').style.display = 'none'
+    switchView('dashboard')
+  } else {
+    document.getElementById('view-toggle').style.display = ''
+    switchView('calendar')
+  }
 })()

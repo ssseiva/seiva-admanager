@@ -26,8 +26,10 @@
       </a>
 
       <div class="navbar-controls">
-        <!-- View toggle -->
-        <div class="view-toggle" id="view-toggle">
+        <!-- Início (anunciante only) -->
+        <button class="btn btn-ghost btn-sm" id="btn-inicio" style="display:none">← Início</button>
+        <!-- View toggle (staff only) -->
+        <div class="view-toggle" id="view-toggle" style="display:none">
           <button class="view-btn active" data-view="calendar">📅 Calendário</button>
           <button class="view-btn" data-view="list">☰ Lista</button>
         </div>
@@ -54,6 +56,11 @@
       </div>
     </div>
   </nav>
+
+  <!-- Dashboard (anunciante) -->
+  <div id="dashboard-view" style="display:none">
+    <div class="dash-scroll" id="dash-content"></div>
+  </div>
 
   <!-- List View (Spreadsheet) -->
   <div id="list-view" style="display:none">

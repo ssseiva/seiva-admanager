@@ -836,6 +836,121 @@ tr:hover td { background: #fafaf8; }
 .view-btn:hover { color: var(--text); }
 .view-btn.active { background: var(--surface); color: var(--text); box-shadow: var(--shadow-xs); }
 
+/* ─── Dashboard ──────────────────────────────────────────────────────── */
+#dashboard-view {
+  height: calc(100vh - 55px);
+  overflow-y: auto;
+  background: var(--bg);
+}
+
+.dash-scroll { display: flex; justify-content: center; padding: 3rem 1.5rem 4rem; }
+
+.dash-inner {
+  width: 100%;
+  max-width: 720px;
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+}
+
+.dash-inner > * { animation: dashIn .55s cubic-bezier(.22,.68,0,1.2) both; }
+
+@keyframes dashIn {
+  from { opacity: 0; transform: translateY(22px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.dash-welcome { animation-delay: .04s; }
+.dash-hello { font-size: .95rem; color: var(--text-muted); font-weight: 500; margin-bottom: .3rem; }
+.dash-company { font-size: 2rem; font-weight: 800; color: var(--text); line-height: 1.15; margin: 0 0 .5rem; letter-spacing: -.01em; }
+.dash-sub { font-size: .92rem; color: var(--text-muted); margin: 0; }
+
+.dash-section { animation: dashIn .55s cubic-bezier(.22,.68,0,1.2) both; }
+
+.dash-section-title {
+  font-size: .75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text-muted);
+  margin-bottom: .9rem;
+}
+
+.dash-quota-summary { display: flex; align-items: baseline; gap: .6rem; margin-bottom: 1rem; }
+.dash-quota-big { font-size: 3rem; font-weight: 800; color: var(--primary); line-height: 1; letter-spacing: -.02em; }
+.dash-quota-label { font-size: 1rem; color: var(--text-muted); font-weight: 500; }
+
+.dash-cards { display: flex; gap: .75rem; flex-wrap: wrap; }
+
+.dash-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  min-width: 140px;
+  flex: 1;
+  animation: dashIn .5s cubic-bezier(.22,.68,0,1.2) both;
+}
+.dash-card-aurora { border-left-color: var(--red); }
+.dash-card-indice  { border-left-color: var(--blue); }
+.dash-card-label { font-size: .75rem; color: var(--text-muted); font-weight: 600; margin-bottom: .5rem; }
+.dash-card-number { font-size: 2rem; font-weight: 800; color: var(--text); line-height: 1; }
+.dash-card-sub { font-size: .78rem; color: var(--text-muted); margin-top: .2rem; }
+.dash-empty { color: var(--text-muted); font-size: .9rem; font-style: italic; }
+
+.dash-upcoming { display: flex; flex-direction: column; gap: .5rem; }
+
+.dash-upcoming-row {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  padding: .6rem .85rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: .85rem;
+  flex-wrap: wrap;
+}
+.dash-upcoming-date { font-weight: 700; color: var(--text); min-width: 72px; }
+.dash-upcoming-fmt { color: var(--text-muted); font-size: .8rem; }
+.dash-upcoming-name { color: var(--text); font-weight: 500; flex: 1; }
+
+.dash-action-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.dash-action-card {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem 1.25rem;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .15s, box-shadow .15s, transform .15s;
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+  font-family: inherit;
+}
+.dash-action-card:hover {
+  border-color: var(--primary);
+  box-shadow: 0 4px 16px rgba(22,163,74,.12);
+  transform: translateY(-2px);
+}
+.dash-action-icon { font-size: 1.5rem; line-height: 1; margin-bottom: .25rem; }
+.dash-action-name { font-size: .95rem; font-weight: 700; color: var(--text); }
+.dash-action-desc { font-size: .8rem; color: var(--text-muted); line-height: 1.4; }
+
+.sh-date-picker { width: 130px; }
+
+@media (max-width: 600px) {
+  .dash-action-grid { grid-template-columns: 1fr; }
+  .dash-company { font-size: 1.5rem; }
+}
+
 /* ─── Sheet View ─────────────────────────────────────────────────────── */
 #list-view {
   display: flex;
