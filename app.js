@@ -182,7 +182,7 @@ function initCalendar() {
       const dateStr = toISODate(info.date)
       if (isDayBlocked(dateStr, allBlockedDates)) return
       showSidebar(dateStr)
-      if (canBook) {
+      if (canBook && !isAnunciante) {
         openBookingModal(dateStr, null)
       }
     },
@@ -308,7 +308,12 @@ function showSidebar(dateStr) {
   }
   html += '</div>'
 
-  if (canBook && !blocked) {
+  if (isAnunciante && !blocked) {
+    html += `<div style="margin-top:.85rem;padding:.75rem;background:var(--primary-light);border-radius:var(--radius-sm);font-size:.82rem;color:var(--seiva-green-dark);line-height:1.4">
+      Para adicionar spots, use o <strong>Preencher pacote mensal</strong>.
+      <br><button class="btn btn-primary btn-sm" style="margin-top:.5rem;width:100%" id="btn-goto-pkg">Ir para pacote mensal</button>
+    </div>`
+  } else if (canBook && !blocked) {
     html += `<button class="btn btn-primary btn-block mt" id="btn-new-booking">+ Novo Anúncio</button>`
   }
 
@@ -334,6 +339,10 @@ function showSidebar(dateStr) {
 
   document.getElementById('btn-new-booking')?.addEventListener('click', () => {
     openBookingModal(dateStr, null)
+  })
+
+  document.getElementById('btn-goto-pkg')?.addEventListener('click', () => {
+    switchView('list')
   })
 }
 

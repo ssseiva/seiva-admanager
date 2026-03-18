@@ -41,8 +41,8 @@ export const FERIADOS_BR = [
 ]
 
 export const NEWSLETTERS = {
-  aurora: { label: 'Aurora', color: '#dc2626', colorLight: '#fee2e2' },
-  indice: { label: 'Índice', color: '#1e40af', colorLight: '#dbeafe' },
+  aurora: { label: 'Aurora', color: '#c0306a', colorLight: '#fce8f0' },
+  indice: { label: 'Índice', color: '#9a7000', colorLight: '#fdf5c0' },
 }
 
 export const FORMATS = {

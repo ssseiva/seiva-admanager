@@ -29,12 +29,12 @@
   --primary-hover: var(--seiva-green-dark);
   --primary-light: #e6f5e4;
   --primary-mid: #9edb9a;
-  --aurora: #b84030;
-  --aurora-light: #f9e8e4;
-  --aurora-mid: #e8b0a0;
-  --indice: #2a6090;
-  --indice-light: #ddeef8;
-  --indice-mid: #90c0e0;
+  --aurora: #c0306a;
+  --aurora-light: #fce8f0;
+  --aurora-mid: #e898c0;
+  --indice: #9a7000;
+  --indice-light: #fdf5c0;
+  --indice-mid: #e8d060;
   --green: var(--seiva-green);
   --green-dark: var(--seiva-green-dark);
   --green-light: #e6f5e4;
@@ -383,7 +383,7 @@ select.form-control {
 .app-main {
   flex: 1;
   overflow: auto;
-  padding: 1.25rem;
+  padding: 1.75rem 2.5rem;
   background: var(--bg);
 }
 
@@ -505,6 +505,8 @@ select.form-control {
 }
 
 .fc .fc-daygrid-day.fc-day-today { background: #f0fdf4; }
+.fc .fc-daygrid-day:not(.day-blocked):not(.fc-day-other):hover { background: rgba(56,168,50,.06); transition: background .15s; }
+.fc .fc-daygrid-day { transition: background .15s; }
 
 .fc .fc-daygrid-day.day-blocked {
   background: var(--bg) !important;
@@ -1287,13 +1289,13 @@ tr:hover td { background: #fafaf8; }
 }
 
 /* Row type backgrounds */
-.pkg-row.pkg-aurora-d td  { background: #fef8f5; }
-.pkg-row.pkg-indice-d td  { background: #f5f8fd; }
-.pkg-row.pkg-aurora-c td  { background: #fafaf7; }
+.pkg-row.pkg-aurora-d td  { background: #fef6fa; }
+.pkg-row.pkg-indice-d td  { background: #fefdf0; }
+.pkg-row.pkg-aurora-c td  { background: #f8fbf6; }
 
-.pkg-row.pkg-row-filled.pkg-aurora-d td { background: #f8ede8; }
-.pkg-row.pkg-row-filled.pkg-indice-d td { background: #e8f0f8; }
-.pkg-row.pkg-row-filled.pkg-aurora-c td { background: #f0ede5; }
+.pkg-row.pkg-row-filled.pkg-aurora-d td { background: #f8e2ee; }
+.pkg-row.pkg-row-filled.pkg-indice-d td { background: #faf0b0; }
+.pkg-row.pkg-row-filled.pkg-aurora-c td { background: #e4f2e4; }
 
 .pkg-row.sh-row-error td { background: #fff5f5 !important; }
 
