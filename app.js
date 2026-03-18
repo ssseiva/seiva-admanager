@@ -24,7 +24,7 @@ const initials = (session.clientName || session.userName || '?').substring(0, 2)
 document.getElementById('user-avatar').textContent = initials
 document.getElementById('user-name').textContent = session.clientName || session.userName || 'Usuário'
 document.getElementById('user-role').textContent =
-  isAdmin ? 'Admin' : isRedator ? 'Redator' : session.clientName
+  isAdmin ? 'Admin' : isRedator ? 'Redator' : 'Anunciante'
 
 if (isAdmin) {
   document.getElementById('btn-admin').style.display = 'inline-flex'
