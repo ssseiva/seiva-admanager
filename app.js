@@ -1026,11 +1026,6 @@ function renderDashboard() {
       <div class="dash-section" style="animation-delay:.3s">
         <div class="dash-section-title">O que você quer fazer?</div>
         <div class="dash-action-grid">
-          <button class="dash-action-card" id="dash-single">
-            <div class="dash-action-icon">＋</div>
-            <div class="dash-action-name">Criar um spot</div>
-            <div class="dash-action-desc">Escolha o dia no calendário e preencha o formulário</div>
-          </button>
           <button class="dash-action-card" id="dash-multi">
             <div class="dash-action-icon">📦</div>
             <div class="dash-action-name">Preencher pacote mensal</div>
@@ -1046,7 +1041,6 @@ function renderDashboard() {
     </div>
   `
 
-  document.getElementById('dash-single').addEventListener('click', () => switchView('calendar'))
   document.getElementById('dash-multi').addEventListener('click', () => switchView('list'))
   document.getElementById('dash-calendar').addEventListener('click', () => switchView('calendar'))
 }
@@ -1061,23 +1055,51 @@ const PKG_SLOTS = [
 ]
 
 function renderPackageMonths() {
-  const now = new Date()
+  const now      = new Date()
   const curYear  = now.getFullYear()
   const curMonth = now.getMonth()
 
   const myBookings = (window._ownBookings || []).filter(b => b.status !== 'rejeitado')
 
-  const months = Array.from({ length: 12 }, (_, m) => ({ year: curYear, month: m }))
+  // Season: April of curYear → March of curYear+1
+  // (Jan/Feb/Mar of a year still shows that year's upcoming April-March cycle)
+  const seasonYear = curYear
+
+  // Generate April (seasonYear) → March (seasonYear+1)
+  const months = Array.from({ length: 12 }, (_, i) => {
+    const absMonth = 3 + i // April = 3
+    return {
+      year:  seasonYear + Math.floor(absMonth / 12),
+      month: absMonth % 12,
+    }
+  })
 
   const cards = months.map(({ year, month }) => {
     const monthStr = `${year}-${String(month + 1).padStart(2, '0')}`
     const filled   = myBookings.filter(b => b.date?.startsWith(monthStr)).length
-    const isPast   = month < curMonth
-    return `<button class="pkg-month-card${isPast ? ' pkg-month-past' : ''}" data-year="${year}" data-month="${month}">
+
+    // A month is editable if today >= 1st of (month - 2)
+    const availableFrom = new Date(year, month - 2, 1)
+    const isPast        = year < curYear || (year === curYear && month < curMonth)
+    const isCurrent     = year === curYear && month === curMonth
+    const isEditable    = !isPast && !isCurrent && now >= availableFrom
+
+    let statusHtml
+    if (isPast || isCurrent) {
+      statusHtml = `<div class="pkg-month-action pkg-month-locked">Encerrado</div>`
+    } else if (isEditable) {
+      statusHtml = `<div class="pkg-month-action">Preencher →</div>`
+    } else {
+      const avStr = availableFrom.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      statusHtml = `<div class="pkg-month-action pkg-month-locked">Disponível em ${avStr}</div>`
+    }
+
+    const cardCls = `pkg-month-card${(isPast || isCurrent) ? ' pkg-month-past' : ''}${!isEditable ? ' pkg-month-disabled' : ''}`
+    return `<button class="${cardCls}" data-year="${year}" data-month="${month}" data-editable="${isEditable}">
       <div class="pkg-month-name">${MONTH_NAMES[month]}</div>
       <div class="pkg-month-year">${year}</div>
       <div class="pkg-month-count">${filled > 0 ? `${filled} de 12 preenchidos` : 'Nenhum spot'}</div>
-      <div class="pkg-month-action">Preencher →</div>
+      ${statusHtml}
     </button>`
   }).join('')
 
@@ -1093,7 +1115,7 @@ function renderPackageMonths() {
     </div>
   `
 
-  document.querySelectorAll('.pkg-month-card').forEach(card => {
+  document.querySelectorAll('.pkg-month-card[data-editable="true"]').forEach(card => {
     card.addEventListener('click', () => {
       renderPackageForm(Number(card.dataset.year), Number(card.dataset.month))
     })
@@ -1146,7 +1168,12 @@ function renderPackageForm(year, month) {
         data-row="${i}" data-triplet="${tripletIdx}" data-nl="${slotDef.nl}" data-fmt="${slotDef.fmt}" data-booking-id="${bookId}">
       <td class="pkg-td-num">${tripletIdx + 1}</td>
       <td class="pkg-td-slot"><span class="pkg-slot-badge ${slotDef.cls}">${slotDef.label}</span></td>
-      <td class="pkg-td-date"><input type="date" class="sh-input pkg-date" value="${dateVal}" /></td>
+      <td class="pkg-td-date">
+        <input type="hidden" class="pkg-date" value="${dateVal}" />
+        <button type="button" class="pkg-date-btn${dateVal ? ' has-date' : ''}" data-nl="${slotDef.nl}" data-fmt="${slotDef.fmt}">
+          ${dateVal ? formatDate(dateVal) : '📅 data'}
+        </button>
+      </td>
       <td class="pkg-td-camp"><input class="sh-input" data-field="campaign_name" value="${escHtml(campVal)}" placeholder="Título da campanha" /></td>
       <td class="pkg-td-auth"><input class="sh-input" data-field="authorship" value="${escHtml(authVal)}" placeholder="Autoria" /></td>
       <td class="pkg-td-text"><input class="sh-input" data-field="suggested_text" value="${escHtml(textVal)}" placeholder="Texto do anúncio (200–500 chars)" /></td>
@@ -1198,6 +1225,12 @@ function renderPackageForm(year, month) {
   document.querySelectorAll('.pkg-copy-btn').forEach(btn => {
     btn.addEventListener('click', () => copyTripletContent(Number(btn.dataset.triplet)))
   })
+  document.querySelectorAll('.pkg-date-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const hidden = btn.previousElementSibling
+      openDatePickerPopup(hidden, btn, btn.dataset.nl, btn.dataset.fmt, year, month)
+    })
+  })
   document.getElementById('pkg-body').addEventListener('input', updatePkgCounter)
   updatePkgCounter()
 }
@@ -1227,6 +1260,111 @@ function updatePkgCounter() {
   if (el) el.textContent = n > 0 ? `${n} linha${n > 1 ? 's' : ''} a salvar` : ''
 }
 
+function openDatePickerPopup(hiddenInput, triggerBtn, nl, fmt, year, month) {
+  document.getElementById('pkg-datepicker-overlay')?.remove()
+
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  const startDow    = new Date(year, month, 1).getDay()
+  const DOW_LABELS  = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
+
+  // All bookings occupying this slot (any client), excluding current value
+  const occupiedDates = new Set(
+    allBookings
+      .filter(b => b.newsletter === nl && b.format === fmt && b.status !== 'rejeitado')
+      .map(b => b.date)
+  )
+
+  const currentVal = hiddenInput.value
+
+  let gridHtml = DOW_LABELS.map(d => `<div class="pkdp-dow">${d}</div>`).join('')
+  for (let i = 0; i < startDow; i++) gridHtml += `<div class="pkdp-day pkdp-empty"></div>`
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const iso = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
+    const blocked  = isDayBlocked(iso, allBlockedDates)
+    const occupied = !blocked && occupiedDates.has(iso)
+    const selected = iso === currentVal
+    let cls = 'pkdp-day'
+    if (blocked)       cls += ' pkdp-blocked'
+    else if (occupied) cls += ' pkdp-occupied'
+    else               cls += ' pkdp-available'
+    if (selected)      cls += ' pkdp-selected'
+    const attrs = (!blocked && !occupied) ? `data-date="${iso}"` : 'aria-disabled="true"'
+    gridHtml += `<div class="${cls}" ${attrs}>${d}</div>`
+  }
+
+  const nlLabel  = NEWSLETTERS[nl]?.label  || nl
+  const fmtLabel = FORMATS[fmt]?.label     || fmt
+
+  const overlay = document.createElement('div')
+  overlay.id = 'pkg-datepicker-overlay'
+  overlay.innerHTML = `
+    <div id="pkg-datepicker">
+      <div class="pkdp-header">
+        <div>
+          <div class="pkdp-title">${MONTH_NAMES[month]} ${year}</div>
+          <div class="pkdp-subtitle">${nlLabel} · ${fmtLabel}</div>
+        </div>
+        <button class="pkdp-close" type="button">✕</button>
+      </div>
+      <div class="pkdp-legend">
+        <span class="pkdp-leg pkdp-leg-available">disponível</span>
+        <span class="pkdp-leg pkdp-leg-occupied">ocupado</span>
+        <span class="pkdp-leg pkdp-leg-blocked">bloqueado/fds</span>
+      </div>
+      <div class="pkdp-grid">${gridHtml}</div>
+    </div>
+  `
+  document.body.appendChild(overlay)
+
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove() })
+  overlay.querySelector('.pkdp-close').addEventListener('click', () => overlay.remove())
+
+  overlay.querySelectorAll('.pkdp-available[data-date]').forEach(cell => {
+    cell.addEventListener('click', () => {
+      hiddenInput.value = cell.dataset.date
+      triggerBtn.textContent = formatDate(cell.dataset.date)
+      triggerBtn.classList.add('has-date')
+      overlay.remove()
+      updatePkgCounter()
+    })
+  })
+}
+
+function findNearestFreeSlotDate(preferredDate, nl, fmt, year, month, combined) {
+  // Build list of all non-blocked days in the month
+  const allDays = []
+  const d = new Date(year, month, 1)
+  while (d.getMonth() === month) {
+    const iso = toISODate(d)
+    if (!isDayBlocked(iso, allBlockedDates)) allDays.push(iso)
+    d.setDate(d.getDate() + 1)
+  }
+  if (!allDays.length) return null
+
+  // Try preferred date first
+  if (!isDayBlocked(preferredDate, allBlockedDates) && isSlotFree(preferredDate, nl, fmt, combined)) {
+    return { date: preferredDate, changed: false }
+  }
+
+  // Find index of preferred date in allDays (or nearest position)
+  const prefIdx = allDays.findIndex(d => d >= preferredDate)
+  const startIdx = prefIdx === -1 ? allDays.length - 1 : prefIdx
+
+  // Search forward then backward from startIdx
+  for (let offset = 1; offset < allDays.length; offset++) {
+    const fwd = startIdx + offset
+    const bwd = startIdx - offset
+    if (fwd < allDays.length && isSlotFree(allDays[fwd], nl, fmt, combined)) {
+      return { date: allDays[fwd], changed: true }
+    }
+    if (bwd >= 0 && isSlotFree(allDays[bwd], nl, fmt, combined)) {
+      return { date: allDays[bwd], changed: true }
+    }
+  }
+  return null
+}
+
 async function savePackage(year, month) {
   const rows = [...document.querySelectorAll('#pkg-body .pkg-row')]
   const btn  = document.getElementById('pkg-save-all')
@@ -1239,7 +1377,7 @@ async function savePackage(year, month) {
   for (let i = 0; i < rows.length; i++) {
     const row        = rows[i]
     const g          = f => row.querySelector(`[data-field="${f}"]`)?.value?.trim() || ''
-    const date       = row.querySelector('.pkg-date')?.value || ''
+    let date         = row.querySelector('.pkg-date')?.value || ''
     const bookingId  = row.dataset.bookingId
     const nl         = row.dataset.nl
     const fmt        = row.dataset.fmt
@@ -1263,11 +1401,31 @@ async function savePackage(year, month) {
     if (cover_link && !isValidUrl(cover_link)) errs.push('Link da capa inválido')
     if (redirect_link && !isValidUrl(redirect_link)) errs.push('Link de redirecionamento inválido')
 
+    let dateWarnMsg = ''
     if (!bookingId) {
       const combined = [...allBookings, ...tempAdded]
-      if (!isSlotFree(date, nl, fmt, combined)) errs.push('Slot já ocupado neste dia')
-      const q = clientHasQuota(session.clientId, nl, fmt, allQuotas, combined)
+      if (!isSlotFree(date, nl, fmt, combined)) {
+        const nearest = findNearestFreeSlotDate(date, nl, fmt, year, month, combined)
+        if (!nearest) {
+          errs.push('Nenhuma data disponível neste mês para este slot')
+        } else {
+          const origFormatted = formatDate(date)
+          const newFormatted  = formatDate(nearest.date)
+          // Update hidden input and display button, re-read for saving
+          row.querySelector('.pkg-date').value = nearest.date
+          const dispBtn = row.querySelector('.pkg-date-btn')
+          if (dispBtn) { dispBtn.textContent = newFormatted; dispBtn.classList.add('has-date') }
+          date = nearest.date
+          dateWarnMsg = `Data alterada de ${origFormatted} para ${newFormatted} — slot indisponível`
+        }
+      }
+      const combined2 = [...allBookings, ...tempAdded]
+      const q = clientHasQuota(session.clientId, nl, fmt, allQuotas, combined2)
       if (!q.allowed) errs.push('Cota esgotada')
+    }
+
+    if (dateWarnMsg && statusEl) {
+      statusEl.innerHTML = `<span class="pkg-date-warn" title="${escHtml(dateWarnMsg)}">⚠ ${escHtml(dateWarnMsg)}</span>`
     }
 
     if (errs.length) {
