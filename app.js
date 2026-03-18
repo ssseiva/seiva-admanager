@@ -2,7 +2,7 @@
 import { requireAuth, logout } from './auth.js'
 import {
   getBookings, createBooking, updateBooking, deleteBooking,
-  getQuotas, getBlockedDates,
+  getQuotas, getBlockedDates, getClients,
 } from './api.js'
 import {
   NEWSLETTERS, FORMATS, BOOKING_STATUS,
@@ -22,9 +22,10 @@ const canBook = isAdmin || isAnunciante
 // ─── UI setup ─────────────────────────────────────────────────────────────────
 const initials = (session.clientName || session.userName || '?').substring(0, 2).toUpperCase()
 document.getElementById('user-avatar').textContent = initials
-document.getElementById('user-name').textContent = session.clientName || session.userName || 'Usuário'
-document.getElementById('user-role').textContent =
-  isAdmin ? 'Admin' : isRedator ? 'Redator' : 'Anunciante'
+const _displayName = isAnunciante ? (session.clientName || session.userName || 'Usuário') : (session.userName || 'Seiva')
+const _roleLabel   = isAdmin ? 'Admin' : isRedator ? 'Redator' : 'Anunciante'
+document.getElementById('user-name').textContent = _displayName
+document.getElementById('user-role').textContent = _displayName.toLowerCase() === _roleLabel.toLowerCase() ? '' : _roleLabel
 
 if (isAdmin) {
   document.getElementById('btn-admin').style.display = 'inline-flex'
@@ -40,6 +41,7 @@ document.getElementById('btn-logout').addEventListener('click', logout)
 let allBookings = []
 let allBlockedDates = []
 let allQuotas = []
+let allClients = []
 let calendar = null
 let currentFilter = 'all'
 let editingBookingId = null
@@ -53,11 +55,13 @@ function showLoading(v) {
 async function loadData() {
   showLoading(true)
   try {
-    const [bookings, blocked, quotas] = await Promise.all([
+    const [bookings, blocked, quotas, clients] = await Promise.all([
       getBookings(isAnunciante ? { clientId: session.clientId } : {}),
       getBlockedDates(),
       isAnunciante ? getQuotas(session.clientId) : (isAdmin ? getQuotas() : []),
+      isAdmin ? getClients() : [],
     ])
+    allClients = clients || []
 
     // For anunciantes: also load all booking slots (date+newsletter+format+status only)
     // so we can show availability. We already have all bookings since service token reads all.
@@ -190,7 +194,8 @@ function initCalendar() {
     // Click on an event: show detail / edit
     eventClick: (info) => {
       const booking = info.event.extendedProps.booking
-      if (canEdit) {
+      const isOwn   = info.event.extendedProps.isOwn
+      if (canEdit || (isAnunciante && isOwn)) {
         openBookingModal(booking.date, booking)
       } else {
         openDetailModal(booking)
@@ -331,8 +336,7 @@ function showSidebar(dateStr) {
       const b = allBookings.find(x => String(x.id) === el.dataset.viewId)
       if (!b) return
       if (canEdit || (isAnunciante && ownSet?.has(b.id))) {
-        if (canEdit) openBookingModal(b.date, b)
-        else openDetailModal(b)
+        openBookingModal(b.date, b)
       }
     })
   })
@@ -594,8 +598,10 @@ function openDetailModal(booking) {
   document.getElementById('detail-modal-body').innerHTML = html
 
   const editBtn = document.getElementById('btn-detail-edit')
-  if (canEdit) {
+  const isOwnBooking = isAnunciante && String(booking.client_id) === String(session.clientId)
+  if (canEdit || isOwnBooking) {
     editBtn.style.display = 'inline-flex'
+    editBtn.textContent = canEdit ? 'Editar' : 'Editar meu anúncio'
     editBtn.onclick = () => {
       closeModal('detail-modal')
       openBookingModal(booking.date, booking)
@@ -940,9 +946,9 @@ function switchView(view) {
       document.getElementById('sheet-container').style.display = 'none'
       renderPackageMonths()
     } else {
-      document.getElementById('pkg-content').style.display = 'none'
-      document.getElementById('sheet-container').style.display = ''
-      renderSheet()
+      document.getElementById('pkg-content').style.display = ''
+      document.getElementById('sheet-container').style.display = 'none'
+      renderStaffUpcoming()
     }
   }
   if (view === 'dashboard') renderDashboard()
@@ -1021,7 +1027,7 @@ function renderDashboard() {
             const nl  = NEWSLETTERS[b.newsletter]?.label || b.newsletter
             const fmt = FORMATS[b.format]?.label        || b.format
             const st  = BOOKING_STATUS[b.status]        || {}
-            return `<div class="dash-upcoming-row">
+            return `<div class="dash-upcoming-row" data-bid="${b.id}" style="cursor:pointer">
               <span class="dash-upcoming-date">${formatDate(b.date)}</span>
               <span class="badge badge-${b.newsletter} badge-xs">${nl}</span>
               <span class="dash-upcoming-fmt">${fmt}</span>
@@ -1052,6 +1058,68 @@ function renderDashboard() {
 
   document.getElementById('dash-multi').addEventListener('click', () => switchView('list'))
   document.getElementById('dash-calendar').addEventListener('click', () => switchView('calendar'))
+
+  document.querySelectorAll('.dash-upcoming-row[data-bid]').forEach(row => {
+    row.addEventListener('click', () => {
+      const b = allBookings.find(x => String(x.id) === row.dataset.bid)
+      if (b) openBookingModal(b.date, b)
+    })
+  })
+}
+
+// ─── Staff upcoming list ──────────────────────────────────────────────────────
+function renderStaffUpcoming() {
+  const today   = toISODate(new Date())
+  const clientMap = {}
+  allClients.forEach(c => { clientMap[String(c.id)] = c.company_name })
+
+  const upcoming = allBookings
+    .filter(b => b.date >= today)
+    .sort((a, b) => a.date.localeCompare(b.date))
+
+  const rows = upcoming.map(b => {
+    const nl  = NEWSLETTERS[b.newsletter]?.label || b.newsletter
+    const fmt = FORMATS[b.format]?.label        || b.format
+    const st  = BOOKING_STATUS[b.status]        || {}
+    const client = clientMap[String(b.client_id)] || `#${b.client_id}`
+    return `<tr class="staff-upcoming-row" data-bid="${b.id}" style="cursor:pointer">
+      <td>${formatDate(b.date)}</td>
+      <td><span class="badge badge-${b.newsletter} badge-xs">${nl}</span></td>
+      <td>${escHtml(fmt)}</td>
+      <td>${escHtml(client)}</td>
+      <td>${escHtml(b.campaign_name || '—')}</td>
+      <td><span class="badge badge-${b.status} badge-xs">${st.label || b.status}</span></td>
+    </tr>`
+  }).join('')
+
+  const html = `
+    <div class="pkg-months-scroll">
+      <div class="pkg-months-wrap">
+        <div class="pkg-months-header">
+          <h2>Próximos spots agendados</h2>
+          <p>${upcoming.length} spot${upcoming.length !== 1 ? 's' : ''} a partir de hoje</p>
+        </div>
+        ${upcoming.length === 0
+          ? `<p style="color:var(--text-muted);font-size:.9rem">Nenhum spot agendado.</p>`
+          : `<table class="staff-upcoming-table">
+              <thead><tr>
+                <th>Data</th><th>Newsletter</th><th>Formato</th>
+                <th>Cliente</th><th>Campanha</th><th>Status</th>
+              </tr></thead>
+              <tbody>${rows}</tbody>
+            </table>`
+        }
+      </div>
+    </div>`
+
+  document.getElementById('pkg-content').innerHTML = html
+
+  document.querySelectorAll('.staff-upcoming-row').forEach(row => {
+    row.addEventListener('click', () => {
+      const b = allBookings.find(x => String(x.id) === row.dataset.bid)
+      if (b) openBookingModal(b.date, b)
+    })
+  })
 }
 
 // ─── Package (monthly) view ───────────────────────────────────────────────────

@@ -927,7 +927,9 @@ tr:hover td { background: #fafaf8; }
   border-radius: var(--radius-sm);
   font-size: .85rem;
   flex-wrap: wrap;
+  transition: background .12s, border-color .12s;
 }
+.dash-upcoming-row:hover { background: var(--surface-hover); border-color: var(--primary-mid); }
 .dash-upcoming-date { font-weight: 700; color: var(--text); min-width: 72px; }
 .dash-upcoming-fmt { color: var(--text-muted); font-size: .8rem; }
 .dash-upcoming-name { color: var(--text); font-weight: 500; flex: 1; }
@@ -1479,6 +1481,34 @@ tr:hover td { background: #fafaf8; }
   cursor: not-allowed;
   opacity: .4;
 }
+
+/* ─── Staff upcoming table ───────────────────────────────────────────── */
+.staff-upcoming-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .85rem;
+}
+.staff-upcoming-table thead th {
+  text-align: left;
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--text-muted);
+  padding: .5rem .85rem;
+  border-bottom: 2px solid var(--border);
+}
+.staff-upcoming-table tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: background .12s;
+}
+.staff-upcoming-table tbody tr:hover { background: var(--surface-hover); }
+.staff-upcoming-table td {
+  padding: .65rem .85rem;
+  vertical-align: middle;
+}
+.staff-upcoming-table td:first-child { font-weight: 600; white-space: nowrap; }
+.staff-upcoming-table td:nth-child(4) { color: var(--text-muted); font-size: .8rem; }
 
 /* ─── Responsive ─────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
