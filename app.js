@@ -925,7 +925,17 @@ function switchView(view) {
   document.getElementById('nl-filter').style.display       = view === 'calendar'   ? '' : 'none'
   document.getElementById('btn-inicio').style.display      = isAnunciante && view !== 'dashboard' ? 'inline-flex' : 'none'
   document.querySelectorAll('.view-btn').forEach(b => b.classList.toggle('active', b.dataset.view === view))
-  if (view === 'list')      renderSheet()
+  if (view === 'list') {
+    if (isAnunciante) {
+      document.getElementById('pkg-content').style.display = ''
+      document.getElementById('sheet-container').style.display = 'none'
+      renderPackageMonths()
+    } else {
+      document.getElementById('pkg-content').style.display = 'none'
+      document.getElementById('sheet-container').style.display = ''
+      renderSheet()
+    }
+  }
   if (view === 'dashboard') renderDashboard()
   if (view === 'calendar')  calendar?.render()
 }
@@ -1022,9 +1032,9 @@ function renderDashboard() {
             <div class="dash-action-desc">Escolha o dia no calendário e preencha o formulário</div>
           </button>
           <button class="dash-action-card" id="dash-multi">
-            <div class="dash-action-icon">≡</div>
-            <div class="dash-action-name">Criar vários spots</div>
-            <div class="dash-action-desc">Preencha uma planilha com vários spots de uma vez</div>
+            <div class="dash-action-icon">📦</div>
+            <div class="dash-action-name">Preencher pacote mensal</div>
+            <div class="dash-action-desc">Preencha os 12 spots de um mês de uma vez</div>
           </button>
           <button class="dash-action-card" id="dash-calendar">
             <div class="dash-action-icon">📅</div>
@@ -1037,11 +1047,282 @@ function renderDashboard() {
   `
 
   document.getElementById('dash-single').addEventListener('click', () => switchView('calendar'))
-  document.getElementById('dash-multi').addEventListener('click', () => {
-    switchView('list')
-    renderSheet('blank')
-  })
+  document.getElementById('dash-multi').addEventListener('click', () => switchView('list'))
   document.getElementById('dash-calendar').addEventListener('click', () => switchView('calendar'))
+}
+
+// ─── Package (monthly) view ───────────────────────────────────────────────────
+const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
+
+const PKG_SLOTS = [
+  { nl: 'aurora', fmt: 'destaque', label: 'Aurora Destaque', cls: 'pkg-aurora-d' },
+  { nl: 'indice', fmt: 'destaque', label: 'Índice Destaque', cls: 'pkg-indice-d' },
+  { nl: 'aurora', fmt: 'corpo',    label: 'Aurora Corpo',    cls: 'pkg-aurora-c' },
+]
+
+function renderPackageMonths() {
+  const now = new Date()
+  const curYear  = now.getFullYear()
+  const curMonth = now.getMonth()
+
+  const myBookings = (window._ownBookings || []).filter(b => b.status !== 'rejeitado')
+
+  const months = Array.from({ length: 12 }, (_, m) => ({ year: curYear, month: m }))
+
+  const cards = months.map(({ year, month }) => {
+    const monthStr = `${year}-${String(month + 1).padStart(2, '0')}`
+    const filled   = myBookings.filter(b => b.date?.startsWith(monthStr)).length
+    const isPast   = month < curMonth
+    return `<button class="pkg-month-card${isPast ? ' pkg-month-past' : ''}" data-year="${year}" data-month="${month}">
+      <div class="pkg-month-name">${MONTH_NAMES[month]}</div>
+      <div class="pkg-month-year">${year}</div>
+      <div class="pkg-month-count">${filled > 0 ? `${filled} de 12 preenchidos` : 'Nenhum spot'}</div>
+      <div class="pkg-month-action">Preencher →</div>
+    </button>`
+  }).join('')
+
+  document.getElementById('pkg-content').innerHTML = `
+    <div class="pkg-months-scroll">
+      <div class="pkg-months-wrap">
+        <div class="pkg-months-header">
+          <h2>Pacote mensal</h2>
+          <p>Cada mês tem 12 spots: 4 Aurora Destaque · 4 Índice Destaque · 4 Aurora Corpo</p>
+        </div>
+        <div class="pkg-months-grid">${cards}</div>
+      </div>
+    </div>
+  `
+
+  document.querySelectorAll('.pkg-month-card').forEach(card => {
+    card.addEventListener('click', () => {
+      renderPackageForm(Number(card.dataset.year), Number(card.dataset.month))
+    })
+  })
+}
+
+function renderPackageForm(year, month) {
+  const monthStr = `${year}-${String(month + 1).padStart(2, '0')}`
+
+  // My existing bookings for this month
+  const myMonthBkgs = allBookings.filter(b =>
+    String(b.client_id) === String(session.clientId) &&
+    b.date?.startsWith(monthStr) &&
+    b.status !== 'rejeitado'
+  )
+
+  // Group by slot type, sorted by date
+  const bySlot = {}
+  for (const slot of PKG_SLOTS) {
+    const key = `${slot.nl}_${slot.fmt}`
+    bySlot[key] = myMonthBkgs
+      .filter(b => b.newsletter === slot.nl && b.format === slot.fmt)
+      .sort((a, b) => a.date.localeCompare(b.date))
+  }
+
+  // Build 12 interleaved rows
+  const slotCounters = { aurora_destaque: 0, indice_destaque: 0, aurora_corpo: 0 }
+  const rowsHtml = Array.from({ length: 12 }, (_, i) => {
+    const slotDef    = PKG_SLOTS[i % 3]
+    const tripletIdx = Math.floor(i / 3)
+    const key        = `${slotDef.nl}_${slotDef.fmt}`
+    const slotNum    = slotCounters[key]++
+    const existing   = bySlot[key][slotNum] || null
+
+    const dateVal  = existing?.date           || ''
+    const campVal  = existing?.campaign_name  || ''
+    const authVal  = existing?.authorship     || ''
+    const textVal  = existing?.suggested_text || ''
+    const capaVal  = existing?.cover_link     || ''
+    const redirVal = existing?.redirect_link  || ''
+    const bookId   = existing?.id             || ''
+
+    const isIndiceDest = slotDef.nl === 'indice' && slotDef.fmt === 'destaque'
+    const isTripletStart = i % 3 === 0 && i > 0
+    const statusHtml = existing
+      ? `<span class="badge badge-${existing.status} badge-xs">${BOOKING_STATUS[existing.status]?.label || existing.status}</span>`
+      : ''
+
+    return `<tr class="pkg-row ${slotDef.cls}${existing ? ' pkg-row-filled' : ''}${isTripletStart ? ' pkg-triplet-start' : ''}"
+        data-row="${i}" data-triplet="${tripletIdx}" data-nl="${slotDef.nl}" data-fmt="${slotDef.fmt}" data-booking-id="${bookId}">
+      <td class="pkg-td-num">${tripletIdx + 1}</td>
+      <td class="pkg-td-slot"><span class="pkg-slot-badge ${slotDef.cls}">${slotDef.label}</span></td>
+      <td class="pkg-td-date"><input type="date" class="sh-input pkg-date" value="${dateVal}" /></td>
+      <td class="pkg-td-camp"><input class="sh-input" data-field="campaign_name" value="${escHtml(campVal)}" placeholder="Título da campanha" /></td>
+      <td class="pkg-td-auth"><input class="sh-input" data-field="authorship" value="${escHtml(authVal)}" placeholder="Autoria" /></td>
+      <td class="pkg-td-text"><input class="sh-input" data-field="suggested_text" value="${escHtml(textVal)}" placeholder="Texto do anúncio (200–500 chars)" /></td>
+      <td class="pkg-td-link"><input class="sh-input" data-field="cover_link" value="${escHtml(capaVal)}" placeholder="https://..." /></td>
+      <td class="pkg-td-link"><input class="sh-input" data-field="redirect_link" value="${escHtml(redirVal)}" placeholder="https://..." /></td>
+      <td class="pkg-td-act">
+        ${isIndiceDest ? `<button class="btn btn-ghost btn-sm pkg-copy-btn" data-triplet="${tripletIdx}" title="Copiar dados do Aurora Destaque desta linha">↩</button>` : ''}
+        <span id="pkg-s-${i}">${statusHtml}</span>
+      </td>
+    </tr>`
+  }).join('')
+
+  document.getElementById('pkg-content').innerHTML = `
+    <div class="pkg-form-wrap">
+      <div class="pkg-form-header">
+        <button class="btn btn-ghost btn-sm" id="pkg-back">← Meses</button>
+        <div class="pkg-form-title">
+          <h2>${MONTH_NAMES[month]} ${year}</h2>
+          <p>12 spots · 4× Aurora Destaque · 4× Índice Destaque · 4× Aurora Corpo</p>
+        </div>
+        <div class="pkg-form-actions">
+          <span id="pkg-save-count"></span>
+          <button class="btn btn-primary" id="pkg-save-all">Salvar todos</button>
+        </div>
+      </div>
+      <div class="pkg-table-wrap">
+        <table class="pkg-table">
+          <thead>
+            <tr>
+              <th class="pkg-th-num">#</th>
+              <th>Slot</th>
+              <th>Data</th>
+              <th>Campanha <span class="req">*</span></th>
+              <th>Autoria <span class="req">*</span></th>
+              <th>Texto (200–500) <span class="req">*</span></th>
+              <th>Link da capa</th>
+              <th>Link de redirecionamento</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="pkg-body">${rowsHtml}</tbody>
+        </table>
+      </div>
+    </div>
+  `
+
+  document.getElementById('pkg-back').addEventListener('click', () => renderPackageMonths())
+  document.getElementById('pkg-save-all').addEventListener('click', () => savePackage(year, month))
+  document.querySelectorAll('.pkg-copy-btn').forEach(btn => {
+    btn.addEventListener('click', () => copyTripletContent(Number(btn.dataset.triplet)))
+  })
+  document.getElementById('pkg-body').addEventListener('input', updatePkgCounter)
+  updatePkgCounter()
+}
+
+function copyTripletContent(tripletIdx) {
+  // Source: Aurora Destaque row (i = tripletIdx * 3)
+  // Target: Índice Destaque row (i = tripletIdx * 3 + 1)
+  const srcRow = document.querySelector(`.pkg-row[data-row="${tripletIdx * 3}"]`)
+  const dstRow = document.querySelector(`.pkg-row[data-row="${tripletIdx * 3 + 1}"]`)
+  if (!srcRow || !dstRow) return
+
+  for (const f of ['campaign_name', 'authorship', 'suggested_text', 'cover_link', 'redirect_link']) {
+    const src = srcRow.querySelector(`[data-field="${f}"]`)
+    const dst = dstRow.querySelector(`[data-field="${f}"]`)
+    if (src && dst) dst.value = src.value
+  }
+  updatePkgCounter()
+}
+
+function updatePkgCounter() {
+  const rows = [...document.querySelectorAll('#pkg-body .pkg-row')]
+  const n = rows.filter(r => {
+    const g = f => r.querySelector(`[data-field="${f}"]`)?.value?.trim()
+    return r.querySelector('.pkg-date')?.value && g('campaign_name') && g('suggested_text')
+  }).length
+  const el = document.getElementById('pkg-save-count')
+  if (el) el.textContent = n > 0 ? `${n} linha${n > 1 ? 's' : ''} a salvar` : ''
+}
+
+async function savePackage(year, month) {
+  const rows = [...document.querySelectorAll('#pkg-body .pkg-row')]
+  const btn  = document.getElementById('pkg-save-all')
+  btn.disabled = true
+  btn.textContent = 'Salvando...'
+
+  let saved = 0, errors = 0
+  const tempAdded = []
+
+  for (let i = 0; i < rows.length; i++) {
+    const row        = rows[i]
+    const g          = f => row.querySelector(`[data-field="${f}"]`)?.value?.trim() || ''
+    const date       = row.querySelector('.pkg-date')?.value || ''
+    const bookingId  = row.dataset.bookingId
+    const nl         = row.dataset.nl
+    const fmt        = row.dataset.fmt
+    const campaign_name   = g('campaign_name')
+    const authorship      = g('authorship')
+    const suggested_text  = g('suggested_text')
+    const cover_link      = g('cover_link')
+    const redirect_link   = g('redirect_link')
+    const statusEl        = document.getElementById(`pkg-s-${i}`)
+
+    // Skip fully empty rows
+    if (!date && !campaign_name && !suggested_text) continue
+
+    const errs = []
+    if (!date) errs.push('Data obrigatória')
+    else if (isDayBlocked(date, allBlockedDates)) errs.push('Data bloqueada ou fim de semana')
+    if (!campaign_name) errs.push('Campanha obrigatória')
+    if (!authorship) errs.push('Autoria obrigatória')
+    if (suggested_text.length < 200) errs.push(`Texto curto (${suggested_text.length} chars, mín. 200)`)
+    if (suggested_text.length > 500) errs.push('Texto longo (máx. 500)')
+    if (cover_link && !isValidUrl(cover_link)) errs.push('Link da capa inválido')
+    if (redirect_link && !isValidUrl(redirect_link)) errs.push('Link de redirecionamento inválido')
+
+    if (!bookingId) {
+      const combined = [...allBookings, ...tempAdded]
+      if (!isSlotFree(date, nl, fmt, combined)) errs.push('Slot já ocupado neste dia')
+      const q = clientHasQuota(session.clientId, nl, fmt, allQuotas, combined)
+      if (!q.allowed) errs.push('Cota esgotada')
+    }
+
+    if (errs.length) {
+      if (statusEl) statusEl.innerHTML = `<span class="sh-err" title="${escHtml(errs.join('; '))}">✕ ${escHtml(errs[0])}</span>`
+      row.classList.add('sh-row-error')
+      errors++
+      continue
+    }
+
+    const data = { date, newsletter: nl, format: fmt, campaign_name, authorship, suggested_text,
+      cover_link: cover_link || null, redirect_link: redirect_link || null }
+
+    try {
+      if (bookingId) {
+        await updateBooking(bookingId, data)
+        const idx = allBookings.findIndex(b => String(b.id) === bookingId)
+        if (idx >= 0) allBookings[idx] = { ...allBookings[idx], ...data }
+        if (window._ownBookings) {
+          const oi = window._ownBookings.findIndex(b => String(b.id) === bookingId)
+          if (oi >= 0) window._ownBookings[oi] = { ...window._ownBookings[oi], ...data }
+        }
+      } else {
+        data.status    = 'pendente'
+        data.client_id = session.clientId
+        const result   = await createBooking(data)
+        if (result) {
+          allBookings.push(result)
+          tempAdded.push(result)
+          if (!window._ownBookings) window._ownBookings = []
+          window._ownBookings.push(result)
+          row.dataset.bookingId = result.id
+          row.classList.add('pkg-row-filled')
+        }
+      }
+      if (statusEl) statusEl.innerHTML = `<span class="sh-ok">✓</span>`
+      row.classList.remove('sh-row-error')
+      saved++
+    } catch (e) {
+      if (statusEl) statusEl.innerHTML = `<span class="sh-err" title="${escHtml(e.message)}">✕</span>`
+      row.classList.add('sh-row-error')
+      errors++
+    }
+  }
+
+  btn.disabled = false
+  btn.textContent = 'Salvar todos'
+
+  if (saved > 0) {
+    refreshCalendar()
+    const el = document.getElementById('pkg-save-count')
+    if (el) {
+      el.textContent = `✓ ${saved} salvo${saved > 1 ? 's' : ''}${errors > 0 ? ` · ${errors} com erro` : ''}`
+      el.style.color = errors > 0 ? 'var(--red)' : 'var(--primary)'
+    }
+  }
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────────

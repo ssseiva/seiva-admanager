@@ -62,36 +62,41 @@
     <div class="dash-scroll" id="dash-content"></div>
   </div>
 
-  <!-- List View (Spreadsheet) -->
+  <!-- List View -->
   <div id="list-view" style="display:none">
-    <div class="sheet-topbar">
-      <div class="sheet-month-nav">
-        <button class="btn btn-ghost btn-sm" id="sheet-prev">‹</button>
-        <span id="sheet-month-label"></span>
-        <button class="btn btn-ghost btn-sm" id="sheet-next">›</button>
+    <!-- Package view (anunciante only) -->
+    <div id="pkg-content" style="display:none"></div>
+    <!-- Sheet view (staff only) -->
+    <div id="sheet-container" style="display:none">
+      <div class="sheet-topbar">
+        <div class="sheet-month-nav">
+          <button class="btn btn-ghost btn-sm" id="sheet-prev">‹</button>
+          <span id="sheet-month-label"></span>
+          <button class="btn btn-ghost btn-sm" id="sheet-next">›</button>
+        </div>
+        <div class="sheet-actions">
+          <span id="sheet-save-count"></span>
+          <button class="btn btn-primary" id="sheet-save-all">Salvar todos</button>
+        </div>
       </div>
-      <div class="sheet-actions">
-        <span id="sheet-save-count"></span>
-        <button class="btn btn-primary" id="sheet-save-all">Salvar todos</button>
+      <div class="sheet-wrap">
+        <table id="sheet-table">
+          <thead>
+            <tr>
+              <th class="sh-th-date">Data</th>
+              <th class="sh-th-campaign">Campanha <span class="req">*</span></th>
+              <th class="sh-th-author">Autoria <span class="req">*</span></th>
+              <th class="sh-th-nl">Newsletter <span class="req">*</span></th>
+              <th class="sh-th-fmt">Formato <span class="req">*</span></th>
+              <th class="sh-th-text">Texto (200–500 caracteres) <span class="req">*</span></th>
+              <th class="sh-th-link">Link da capa</th>
+              <th class="sh-th-link">Link de redirecionamento</th>
+              <th class="sh-th-status"></th>
+            </tr>
+          </thead>
+          <tbody id="sheet-body"></tbody>
+        </table>
       </div>
-    </div>
-    <div class="sheet-wrap">
-      <table id="sheet-table">
-        <thead>
-          <tr>
-            <th class="sh-th-date">Data</th>
-            <th class="sh-th-campaign">Campanha <span class="req">*</span></th>
-            <th class="sh-th-author">Autoria <span class="req">*</span></th>
-            <th class="sh-th-nl">Newsletter <span class="req">*</span></th>
-            <th class="sh-th-fmt">Formato <span class="req">*</span></th>
-            <th class="sh-th-text">Texto (200–500 caracteres) <span class="req">*</span></th>
-            <th class="sh-th-link">Link da capa</th>
-            <th class="sh-th-link">Link de redirecionamento</th>
-            <th class="sh-th-status"></th>
-          </tr>
-        </thead>
-        <tbody id="sheet-body"></tbody>
-      </table>
     </div>
   </div>
 
