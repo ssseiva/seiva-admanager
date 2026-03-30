@@ -94,7 +94,7 @@ export function getSlotStatus(dateStr, bookings) {
   return slots
 }
 
-export function clientHasQuota(clientId, newsletter, format, quotas, bookings) {
+export function clientHasQuota(clientId, newsletter, format, quotas, bookings, targetDate = null) {
   const now = new Date()
   const matching = quotas.filter(q =>
     q.client_id === clientId &&
@@ -102,12 +102,52 @@ export function clientHasQuota(clientId, newsletter, format, quotas, bookings) {
     (q.format === format || q.format === 'ambos') &&
     (!q.expires_at || new Date(q.expires_at) >= now)
   )
-  if (!matching.length) return { allowed: false, total: 0, used: 0 }
+  if (!matching.length) return { allowed: false, total: 0, used: 0, blockedByFrequency: false }
+
   const total = matching.reduce((s, q) => s + (q.total_slots || 0), 0)
   const used = bookings.filter(b =>
-    b.client_id === clientId && b.status !== 'rejeitado'
+    b.client_id === clientId &&
+    b.status !== 'rejeitado' &&
+    (b.newsletter === newsletter || newsletter === 'ambas') &&
+    (b.format === format || format === 'ambos')
   ).length
-  return { allowed: used < total, total, used }
+
+  if (used >= total) return { allowed: false, total, used, blockedByFrequency: false }
+
+  // Verifica frequência (semanal/mensal) se targetDate fornecida
+  if (targetDate) {
+    const date = new Date(targetDate + 'T12:00:00')
+    for (const q of matching) {
+      if (!q.period || q.period === 'livre' || !q.slots_per_period) continue
+
+      let periodStart, periodEnd
+      if (q.period === 'semanal') {
+        // semana: seg a dom
+        const day = date.getDay() // 0=dom
+        const diff = (day === 0 ? -6 : 1 - day)
+        periodStart = new Date(date); periodStart.setDate(date.getDate() + diff); periodStart.setHours(0,0,0,0)
+        periodEnd = new Date(periodStart); periodEnd.setDate(periodStart.getDate() + 6); periodEnd.setHours(23,59,59,999)
+      } else if (q.period === 'mensal') {
+        periodStart = new Date(date.getFullYear(), date.getMonth(), 1)
+        periodEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999)
+      }
+
+      const usedInPeriod = bookings.filter(b =>
+        b.client_id === clientId &&
+        b.status !== 'rejeitado' &&
+        (b.newsletter === newsletter || newsletter === 'ambas') &&
+        (b.format === format || format === 'ambos') &&
+        new Date(b.date + 'T12:00:00') >= periodStart &&
+        new Date(b.date + 'T12:00:00') <= periodEnd
+      ).length
+
+      if (usedInPeriod >= q.slots_per_period) {
+        return { allowed: false, total, used, blockedByFrequency: true, period: q.period, slots_per_period: q.slots_per_period }
+      }
+    }
+  }
+
+  return { allowed: true, total, used, blockedByFrequency: false }
 }
 
 export function formatDate(dateStr) {

@@ -84,6 +84,7 @@
                 <tr>
                   <th>Newsletter</th>
                   <th>Formato</th>
+                  <th>Frequência</th>
                   <th>Total</th>
                   <th>Utilizados</th>
                   <th>Restante</th>
@@ -251,8 +252,23 @@
             </select>
           </div>
           <div class="form-group mb-sm">
+            <label class="form-label">Frequência <span style="color:var(--red)">*</span></label>
+            <select class="form-control" id="q-period" required>
+              <option value="">Selecione...</option>
+              <option value="semanal">Semanal</option>
+              <option value="mensal">Mensal</option>
+              <option value="livre">Livre (sem limite de frequência)</option>
+            </select>
+          </div>
+          <div class="form-group mb-sm" id="q-per-period-group" style="display:none">
+            <label class="form-label">Slots por período <span style="color:var(--red)">*</span></label>
+            <input type="number" class="form-control" id="q-per-period" min="1" max="99" placeholder="Ex: 1" />
+            <span class="form-hint" id="q-per-period-hint"></span>
+          </div>
+          <div class="form-group mb-sm">
             <label class="form-label">Total de Slots <span style="color:var(--red)">*</span></label>
-            <input type="number" class="form-control" id="q-total" min="1" max="999" placeholder="Ex: 4" required />
+            <input type="number" class="form-control" id="q-total" min="1" max="999" placeholder="Ex: 26" required />
+            <span class="form-hint">Total do contrato (ex: 26 = 1/semana por 6 meses)</span>
           </div>
           <div class="form-group mb-sm">
             <label class="form-label">Validade (opcional)</label>
@@ -260,7 +276,7 @@
           </div>
           <div class="form-group mb-sm">
             <label class="form-label">Notas</label>
-            <input type="text" class="form-control" id="q-notes" placeholder="Ex: Pacote trimestral" />
+            <input type="text" class="form-control" id="q-notes" placeholder="Ex: Contrato 6 meses" />
           </div>
           <div id="quota-error" class="alert alert-error" style="display:none"></div>
         </form>

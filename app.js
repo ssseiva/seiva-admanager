@@ -485,8 +485,13 @@ document.getElementById('btn-modal-save').addEventListener('click', async () => 
 
   // Check quota for anunciante
   if (isAnunciante && !editingBookingId) {
-    const q = clientHasQuota(session.clientId, newsletter, format, allQuotas, allBookings)
-    if (!q.allowed) return showErr(errEl, 'Cota esgotada para este formato/newsletter.')
+    const q = clientHasQuota(session.clientId, newsletter, format, allQuotas, allBookings, dateStr)
+    if (!q.allowed) {
+      const msg = q.blockedByFrequency
+        ? `Limite de frequência atingido: já usou ${q.slots_per_period} slot(s) nesta ${q.period === 'semanal' ? 'semana' : 'mês'}.`
+        : 'Cota esgotada para este formato/newsletter.'
+      return showErr(errEl, msg)
+    }
   }
 
   const data = {
@@ -853,8 +858,8 @@ document.getElementById('sheet-save-all').addEventListener('click', async () => 
       const combined = [...allBookings, ...tempAdded]
       if (!isSlotFree(date, newsletter, format, combined)) errs.push('Slot já ocupado neste dia')
       if (isAnunciante) {
-        const q = clientHasQuota(session.clientId, newsletter, format, allQuotas, combined)
-        if (!q.allowed) errs.push('Cota esgotada')
+        const q = clientHasQuota(session.clientId, newsletter, format, allQuotas, combined, date)
+        if (!q.allowed) errs.push(q.blockedByFrequency ? `Limite ${q.period === 'semanal' ? 'semanal' : 'mensal'} atingido` : 'Cota esgotada')
       }
     }
 
@@ -1488,8 +1493,8 @@ async function savePackage(year, month) {
         }
       }
       const combined2 = [...allBookings, ...tempAdded]
-      const q = clientHasQuota(session.clientId, nl, fmt, allQuotas, combined2)
-      if (!q.allowed) errs.push('Cota esgotada')
+      const q = clientHasQuota(session.clientId, nl, fmt, allQuotas, combined2, date)
+      if (!q.allowed) errs.push(q.blockedByFrequency ? `Limite ${q.period === 'semanal' ? 'semanal' : 'mensal'} atingido` : 'Cota esgotada')
     }
 
     if (dateWarnMsg && statusEl) {

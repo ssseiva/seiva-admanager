@@ -230,6 +230,7 @@ function renderQuotas(clientId) {
 
   const nlLabels = { aurora: 'Aurora', indice: 'Índice', ambas: 'Ambas' }
   const fmtLabels = { destaque: 'Destaque', corpo: 'Corpo', ambos: 'Ambos' }
+  const periodLabels = { semanal: '/semana', mensal: '/mês', livre: 'livre' }
 
   tbody.innerHTML = quotas.map(q => {
     const used = allBookings.filter(b =>
@@ -241,10 +242,14 @@ function renderQuotas(clientId) {
     const remaining = Math.max(0, q.total_slots - used)
     const pct = q.total_slots > 0 ? Math.min(100, Math.round(used / q.total_slots * 100)) : 0
     const expired = q.expires_at && new Date(q.expires_at) < new Date()
+    const freqLabel = q.period && q.period !== 'livre' && q.slots_per_period
+      ? `<span class="text-muted" style="font-size:.8rem">${q.slots_per_period}${periodLabels[q.period] || ''}</span>`
+      : q.period === 'livre' ? '<span class="text-muted" style="font-size:.8rem">livre</span>' : '—'
     return `
       <tr>
         <td><span class="badge badge-${q.newsletter === 'indice' ? 'indice' : 'aurora'}">${nlLabels[q.newsletter] || q.newsletter}</span></td>
         <td>${fmtLabels[q.format] || q.format}</td>
+        <td>${freqLabel}</td>
         <td>${q.total_slots}</td>
         <td>
           <div style="display:flex;align-items:center;gap:.5rem">
@@ -274,6 +279,9 @@ window.editQuota = function(quotaId) {
   document.getElementById('quota-modal-title').textContent = 'Editar Cota'
   document.getElementById('q-newsletter').value = quota.newsletter || ''
   document.getElementById('q-format').value = quota.format || ''
+  document.getElementById('q-period').value = quota.period || ''
+  document.getElementById('q-per-period').value = quota.slots_per_period || ''
+  togglePerPeriod(quota.period)
   document.getElementById('q-total').value = quota.total_slots || ''
   document.getElementById('q-expires').value = quota.expires_at || ''
   document.getElementById('q-notes').value = quota.notes || ''
@@ -297,12 +305,28 @@ window.removeQuota = async function(quotaId) {
   }
 }
 
+function togglePerPeriod(period) {
+  const group = document.getElementById('q-per-period-group')
+  const hint = document.getElementById('q-per-period-hint')
+  if (period && period !== 'livre') {
+    group.style.display = 'block'
+    hint.textContent = period === 'semanal' ? 'Ex: 1 = um insert por semana' : 'Ex: 3 = três inserts por mês'
+  } else {
+    group.style.display = 'none'
+  }
+}
+
+document.getElementById('q-period').addEventListener('change', e => togglePerPeriod(e.target.value))
+
 document.getElementById('btn-new-quota').addEventListener('click', () => {
   if (!isAdmin || !selectedClientId) return
   editingQuotaId = null
   document.getElementById('quota-modal-title').textContent = 'Nova Cota'
   document.getElementById('q-newsletter').value = ''
   document.getElementById('q-format').value = ''
+  document.getElementById('q-period').value = ''
+  document.getElementById('q-per-period').value = ''
+  togglePerPeriod('')
   document.getElementById('q-total').value = ''
   document.getElementById('q-expires').value = ''
   document.getElementById('q-notes').value = ''
@@ -317,6 +341,8 @@ document.getElementById('btn-quota-save').addEventListener('click', async () => 
   if (!isAdmin) return
   const newsletter = document.getElementById('q-newsletter').value
   const format = document.getElementById('q-format').value
+  const period = document.getElementById('q-period').value
+  const perPeriod = period && period !== 'livre' ? parseInt(document.getElementById('q-per-period').value) : null
   const total = parseInt(document.getElementById('q-total').value)
   const expires = document.getElementById('q-expires').value || null
   const notes = document.getElementById('q-notes').value.trim() || null
@@ -324,13 +350,15 @@ document.getElementById('btn-quota-save').addEventListener('click', async () => 
 
   if (!newsletter) return showError('quota-error', 'Selecione a newsletter.')
   if (!format) return showError('quota-error', 'Selecione o formato.')
+  if (!period) return showError('quota-error', 'Selecione a frequência.')
+  if (period !== 'livre' && (!perPeriod || perPeriod < 1)) return showError('quota-error', 'Informe os slots por período.')
   if (!total || total < 1) return showError('quota-error', 'Informe o total de slots (mínimo 1).')
 
   const btn = document.getElementById('btn-quota-save')
   btn.disabled = true
   btn.textContent = 'Salvando...'
   try {
-    const data = { client_id: selectedClientId, newsletter, format, total_slots: total, expires_at: expires, notes }
+    const data = { client_id: selectedClientId, newsletter, format, period, slots_per_period: perPeriod, total_slots: total, expires_at: expires, notes }
     if (editingQuotaId) {
       await updateQuota(editingQuotaId, data)
       const idx = allQuotas.findIndex(q => q.id === editingQuotaId)

@@ -88,7 +88,7 @@ export async function updateClient(id, data) {
 
 export async function getQuotas(clientId = null) {
   const filter = clientId ? `&filter[client_id][_eq]=${clientId}` : ''
-  return request(`/items/ad_quotas?fields=id,client_id,newsletter,format,total_slots,expires_at,notes&limit=-1${filter}`)
+  return request(`/items/ad_quotas?fields=id,client_id,newsletter,format,period,slots_per_period,total_slots,expires_at,notes&limit=-1${filter}`)
 }
 
 export async function createQuota(data) {
