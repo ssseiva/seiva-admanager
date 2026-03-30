@@ -1372,20 +1372,61 @@ function openDatePickerPopup(hiddenInput, triggerBtn, nl, fmt, year, month) {
 
   const currentVal = hiddenInput.value
 
+  // Frequency-blocked dates: weeks already at capacity for this client+slot
+  const freqBlockedDates = new Set()
+  if (isAnunciante) {
+    const cq = allQuotas.filter(q =>
+      (q.newsletter === nl || q.newsletter === 'ambas') &&
+      (q.format === fmt || q.format === 'ambos') &&
+      q.period && q.period !== 'livre' && q.slots_per_period
+    )
+    if (cq.length) {
+      const spp    = cq[0].slots_per_period
+      const period = cq[0].period
+      // Committed = saved bookings (excl. current row) + unsaved form dates for same slot
+      const committed = [
+        ...allBookings.filter(b =>
+          String(b.client_id) === String(session.clientId) &&
+          b.newsletter === nl && b.format === fmt &&
+          b.status !== 'rejeitado' && b.date !== currentVal
+        ).map(b => b.date),
+        ...[...document.querySelectorAll(`#pkg-body .pkg-row[data-nl="${nl}"][data-fmt="${fmt}"] .pkg-date`)]
+          .map(i => i.value).filter(v => v && v !== currentVal),
+      ]
+      for (let d = 1; d <= daysInMonth; d++) {
+        const iso = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
+        const dt  = new Date(iso + 'T12:00:00')
+        let ps, pe
+        if (period === 'semanal') {
+          const dow = dt.getDay()
+          const diff = dow === 0 ? -6 : 1 - dow
+          ps = new Date(dt); ps.setDate(dt.getDate() + diff); ps.setHours(0,0,0,0)
+          pe = new Date(ps); pe.setDate(ps.getDate() + 6); pe.setHours(23,59,59,999)
+        } else {
+          ps = new Date(dt.getFullYear(), dt.getMonth(), 1)
+          pe = new Date(dt.getFullYear(), dt.getMonth() + 1, 0, 23, 59, 59, 999)
+        }
+        const used = committed.filter(c => { const ct = new Date(c + 'T12:00:00'); return ct >= ps && ct <= pe }).length
+        if (used >= spp) freqBlockedDates.add(iso)
+      }
+    }
+  }
+
   let gridHtml = DOW_LABELS.map(d => `<div class="pkdp-dow">${d}</div>`).join('')
   for (let i = 0; i < startDow; i++) gridHtml += `<div class="pkdp-day pkdp-empty"></div>`
 
   for (let d = 1; d <= daysInMonth; d++) {
-    const iso = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
-    const blocked  = isDayBlocked(iso, allBlockedDates)
-    const occupied = !blocked && occupiedDates.has(iso)
-    const selected = iso === currentVal
+    const iso        = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
+    const blocked    = isDayBlocked(iso, allBlockedDates)
+    const freqBlocked = !blocked && freqBlockedDates.has(iso)
+    const occupied   = !blocked && !freqBlocked && occupiedDates.has(iso)
+    const selected   = iso === currentVal
     let cls = 'pkdp-day'
-    if (blocked)       cls += ' pkdp-blocked'
-    else if (occupied) cls += ' pkdp-occupied'
-    else               cls += ' pkdp-available'
-    if (selected)      cls += ' pkdp-selected'
-    const attrs = (!blocked && !occupied) ? `data-date="${iso}"` : 'aria-disabled="true"'
+    if (blocked || freqBlocked) cls += ' pkdp-blocked'
+    else if (occupied)          cls += ' pkdp-occupied'
+    else                        cls += ' pkdp-available'
+    if (selected)               cls += ' pkdp-selected'
+    const attrs = (!blocked && !freqBlocked && !occupied) ? `data-date="${iso}"` : 'aria-disabled="true"'
     gridHtml += `<div class="${cls}" ${attrs}>${d}</div>`
   }
 
