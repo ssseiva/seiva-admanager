@@ -117,7 +117,7 @@ function renderClients() {
     return `
       <tr>
         <td><strong>${c.company_name}</strong></td>
-        <td><code style="font-size:.8rem;background:var(--bg);padding:2px 6px;border-radius:3px;border:1px solid var(--border)">${c.access_code}</code></td>
+        <td><code style="font-size:.8rem;background:var(--bg);padding:2px 6px;border-radius:3px;border:1px solid var(--border)">${c.username || c.access_code}</code></td>
         <td class="text-muted">${c.contact_email || '—'}</td>
         <td><span class="badge ${c.active ? 'badge-aprovado' : 'badge-rejeitado'}">${c.active ? 'Ativo' : 'Inativo'}</span></td>
         <td class="text-muted">${quotaCount} cota${quotaCount !== 1 ? 's' : ''} · ${used} uso${used !== 1 ? 's' : ''}</td>
@@ -148,6 +148,8 @@ window.editClient = function(clientId) {
   document.getElementById('client-modal-title').textContent = 'Editar Cliente'
   document.getElementById('c-company').value = client.company_name || ''
   document.getElementById('c-code').value = client.access_code || ''
+  document.getElementById('c-username').value = client.username || ''
+  document.getElementById('c-password').value = client.password || ''
   document.getElementById('c-email').value = client.contact_email || ''
   document.getElementById('c-notes').value = client.notes || ''
   document.getElementById('c-active').checked = client.active !== false
@@ -162,6 +164,8 @@ document.getElementById('btn-new-client').addEventListener('click', () => {
   document.getElementById('client-modal-title').textContent = 'Novo Cliente'
   document.getElementById('c-company').value = ''
   document.getElementById('c-code').value = ''
+  document.getElementById('c-username').value = ''
+  document.getElementById('c-password').value = ''
   document.getElementById('c-email').value = ''
   document.getElementById('c-notes').value = ''
   document.getElementById('c-active').checked = true
@@ -188,6 +192,8 @@ document.getElementById('btn-client-save').addEventListener('click', async () =>
   if (!isAdmin) return
   const company = document.getElementById('c-company').value.trim()
   const code = document.getElementById('c-code').value.trim().toUpperCase()
+  const username = document.getElementById('c-username').value.trim()
+  const password = document.getElementById('c-password').value.trim()
   const email = document.getElementById('c-email').value.trim()
   const notes = document.getElementById('c-notes').value.trim()
   const active = document.getElementById('c-active').checked
@@ -205,7 +211,7 @@ document.getElementById('btn-client-save').addEventListener('click', async () =>
   btn.disabled = true
   btn.textContent = 'Salvando...'
   try {
-    const data = { company_name: company, access_code: code, contact_email: email || null, notes: notes || null, active }
+    const data = { company_name: company, access_code: code, username: username || null, password: password || null, contact_email: email || null, notes: notes || null, active }
     if (editingClientId) {
       await updateClient(editingClientId, data)
       const idx = allClients.findIndex(c => c.id === editingClientId)

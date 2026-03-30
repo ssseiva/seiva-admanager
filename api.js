@@ -69,7 +69,7 @@ export async function deleteBooking(id) {
 // ─── Clientes ─────────────────────────────────────────────────────────────────
 
 export async function getClients() {
-  return request('/items/ad_clients?fields=id,company_name,access_code,contact_email,active,notes&sort=company_name&limit=-1')
+  return request('/items/ad_clients?fields=id,company_name,access_code,username,password,contact_email,active,notes&sort=company_name&limit=-1')
 }
 
 export async function getClient(id) {
