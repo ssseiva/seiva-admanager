@@ -1232,13 +1232,20 @@ function renderPackageForm(year, month) {
       .sort((a, b) => a.date.localeCompare(b.date))
   }
 
-  // Build interleaved rows
+  // Pre-compute fully allocated weeks (all slot types have a booking)
+  const fullyAllocatedWeeks = new Set()
+  for (let w = 0; w < 4; w++) {
+    if (pkgSlots.every(s => bySlot[`${s.nl}_${s.fmt}`][w] != null)) fullyAllocatedWeeks.add(w)
+  }
+
+  // Build interleaved rows, skipping fully allocated weeks
   const slotCounters = {}
   for (const s of pkgSlots) slotCounters[`${s.nl}_${s.fmt}`] = 0
 
   const rowsHtml = Array.from({ length: totalRows }, (_, i) => {
     const slotDef    = pkgSlots[i % pkgSlots.length]
     const weekIdx    = Math.floor(i / pkgSlots.length)
+    if (fullyAllocatedWeeks.has(weekIdx)) { slotCounters[`${slotDef.nl}_${slotDef.fmt}`]++; return '' }
     const key        = `${slotDef.nl}_${slotDef.fmt}`
     const slotNum    = slotCounters[key]++
     const existing   = bySlot[key][slotNum] || null
@@ -1344,10 +1351,7 @@ function copyRowContent(srcIdx, dstIdx) {
 
 function updatePkgCounter() {
   const rows = [...document.querySelectorAll('#pkg-body .pkg-row')]
-  const n = rows.filter(r => {
-    const g = f => r.querySelector(`[data-field="${f}"]`)?.value?.trim()
-    return r.querySelector('.pkg-date')?.value && g('campaign_name') && g('suggested_text')
-  }).length
+  const n = rows.filter(r => r.querySelector('.pkg-date')?.value).length
   const el = document.getElementById('pkg-save-count')
   if (el) el.textContent = n > 0 ? `${n} linha${n > 1 ? 's' : ''} a salvar` : ''
 }
@@ -1480,16 +1484,11 @@ async function savePackage(year, month) {
     const redirect_link   = g('redirect_link')
     const statusEl        = document.getElementById(`pkg-s-${i}`)
 
-    // Skip fully empty rows
-    if (!date && !campaign_name && !suggested_text) continue
+    // Skip rows without a date
+    if (!date) continue
 
     const errs = []
-    if (!date) errs.push('Data obrigatória')
-    else if (isDayBlocked(date, allBlockedDates)) errs.push('Data bloqueada ou fim de semana')
-    if (!campaign_name) errs.push('Campanha obrigatória')
-    if (!authorship) errs.push('Autoria obrigatória')
-    if (suggested_text.length < 200) errs.push(`Texto curto (${suggested_text.length} chars, mín. 200)`)
-    if (suggested_text.length > 500) errs.push('Texto longo (máx. 500)')
+    if (isDayBlocked(date, allBlockedDates)) errs.push('Data bloqueada ou fim de semana')
     if (cover_link && !isValidUrl(cover_link)) errs.push('Link da capa inválido')
     if (redirect_link && !isValidUrl(redirect_link)) errs.push('Link de redirecionamento inválido')
 
