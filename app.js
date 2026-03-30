@@ -1042,11 +1042,18 @@ function renderDashboard() {
             <div class="dash-action-name">Ver calendário</div>
             <div class="dash-action-desc">Visualize todos os slots disponíveis e ocupados</div>
           </button>
-          <div class="dash-action-card dash-action-wip">
-            <div class="dash-action-icon">📊</div>
-            <div class="dash-action-name">Análise de resultados</div>
-            <div class="dash-action-desc">Em desenvolvimento</div>
-          </div>
+          ${session.clientName?.toLowerCase().includes('estante')
+            ? `<a class="dash-action-card" href="https://aurora-dashboard-production-73d8.up.railway.app/indice.html" target="_blank" rel="noopener" style="text-decoration:none">
+                <div class="dash-action-icon">📊</div>
+                <div class="dash-action-name">Painel de resultados</div>
+                <div class="dash-action-desc">Veja o desempenho dos seus anúncios</div>
+              </a>`
+            : `<div class="dash-action-card dash-action-wip">
+                <div class="dash-action-icon">📊</div>
+                <div class="dash-action-name">Análise de resultados</div>
+                <div class="dash-action-desc">Em desenvolvimento</div>
+              </div>`
+          }
         </div>
       </div>
     </div>
