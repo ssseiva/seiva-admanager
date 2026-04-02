@@ -1520,6 +1520,7 @@ async function savePackage(year, month) {
 
   for (let i = 0; i < rows.length; i++) {
     const row        = rows[i]
+    const rowIdx     = row.dataset.row  // original index from HTML generation
     const g          = f => row.querySelector(`[data-field="${f}"]`)?.value?.trim() || ''
     let date         = row.querySelector('.pkg-date')?.value || ''
     const bookingId  = row.dataset.bookingId
@@ -1530,7 +1531,7 @@ async function savePackage(year, month) {
     const suggested_text  = g('suggested_text')
     const cover_link      = g('cover_link')
     const redirect_link   = g('redirect_link')
-    const statusEl        = document.getElementById(`pkg-s-${i}`)
+    const statusEl        = document.getElementById(`pkg-s-${rowIdx}`)
 
     // Skip rows without a date
     if (!date) continue
@@ -1612,13 +1613,17 @@ async function savePackage(year, month) {
   btn.disabled = false
   btn.textContent = 'Salvar todos'
 
+  const el = document.getElementById('pkg-save-count')
   if (saved > 0) {
     refreshCalendar()
-    const el = document.getElementById('pkg-save-count')
     if (el) {
       el.textContent = `✓ ${saved} salvo${saved > 1 ? 's' : ''}${errors > 0 ? ` · ${errors} com erro` : ''}`
       el.style.color = errors > 0 ? 'var(--red)' : 'var(--primary)'
     }
+  } else if (errors > 0) {
+    if (el) { el.textContent = `✕ ${errors} com erro`; el.style.color = 'var(--red)' }
+  } else {
+    if (el) { el.textContent = 'Nenhum spot com data para salvar'; el.style.color = 'var(--text-light)' }
   }
 }
 
