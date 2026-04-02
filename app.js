@@ -1257,7 +1257,8 @@ function renderPackageForm(year, month) {
     const slotNum    = slotCounters[key]++
     const existing   = bySlot[key][slotNum] || null
 
-    const dateVal  = existing?.date           || ''
+    const rawDate  = existing?.date           || ''
+    const dateVal  = rawDate === '9999-01-01' ? '' : rawDate
     const campVal  = existing?.campaign_name  || ''
     const authVal  = existing?.authorship     || ''
     const textVal  = existing?.suggested_text || ''
@@ -1612,22 +1613,9 @@ async function savePackage(year, month) {
       continue
     }
 
-    // Se não tem data, auto-alocar o primeiro dia livre do mês
-    if (!date) {
-      const combined = [...allBookings, ...tempAdded]
-      const firstDay = toISODate(new Date(year, month, 1))
-      const found = findNearestFreeSlotDate(firstDay, nl, fmt, year, month, combined)
-      if (!found) {
-        if (statusEl) statusEl.innerHTML = `<span class="sh-err">✕ Sem data livre</span>`
-        row.classList.add('sh-row-error')
-        errors++
-        continue
-      }
-      date = found.date
-      row.querySelector('.pkg-date').value = date
-      const dispBtn = row.querySelector('.pkg-date-btn')
-      if (dispBtn) { dispBtn.textContent = formatDate(date); dispBtn.classList.add('has-date') }
-    }
+    // Sem data → salvar com data sentinela (Directus exige NOT NULL)
+    const noDate = !date
+    if (noDate) date = '9999-01-01'
     const data = { date, newsletter: nl, format: fmt, campaign_name, authorship, suggested_text,
       cover_link: cover_link || null, redirect_link: redirect_link || null }
 
