@@ -1341,6 +1341,41 @@ function renderPackageForm(year, month) {
   })
   document.getElementById('pkg-body').addEventListener('input', updatePkgCounter)
   updatePkgCounter()
+
+  // Popup de edição ao clicar nos inputs
+  const FIELD_LABELS = {
+    campaign_name: 'Campanha', authorship: 'Autoria',
+    suggested_text: 'Texto do anúncio', cover_link: 'Link da capa', redirect_link: 'Link de redirecionamento',
+  }
+  document.querySelectorAll('#pkg-body .sh-input').forEach(input => {
+    input.readOnly = true
+    input.addEventListener('click', () => {
+      const field = input.dataset.field
+      const label = FIELD_LABELS[field] || field
+      const overlay = document.createElement('div')
+      overlay.className = 'sh-edit-overlay'
+      overlay.innerHTML = `
+        <div class="sh-edit-popup">
+          <label>${escHtml(label)}</label>
+          <textarea>${escHtml(input.value)}</textarea>
+          <div class="sh-edit-actions">
+            <button class="btn btn-secondary btn-sm sh-edit-cancel">Cancelar</button>
+            <button class="btn btn-primary btn-sm sh-edit-ok">OK</button>
+          </div>
+        </div>`
+      document.body.appendChild(overlay)
+      const ta = overlay.querySelector('textarea')
+      ta.focus()
+      ta.setSelectionRange(ta.value.length, ta.value.length)
+      overlay.querySelector('.sh-edit-ok').addEventListener('click', () => {
+        input.value = ta.value
+        input.dispatchEvent(new Event('input', { bubbles: true }))
+        overlay.remove()
+      })
+      overlay.querySelector('.sh-edit-cancel').addEventListener('click', () => overlay.remove())
+      overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove() })
+    })
+  })
 }
 
 function copyRowContent(srcIdx, dstIdx) {
