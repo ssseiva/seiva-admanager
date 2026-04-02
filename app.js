@@ -1204,7 +1204,7 @@ function renderPackageMonths() {
       <div class="pkg-months-wrap">
         <div class="pkg-months-header">
           <h2>Pacote mensal</h2>
-          <p>Cada mês tem ${slotsPerMonth} spots: ${pkgSlots.map(s => `4× ${s.label}`).join(' · ')}</p>
+          <p>Cada semana tem ${pkgSlots.length} spots: ${pkgSlots.map(s => `1× ${s.label}`).join(' · ')}</p>
         </div>
         <div class="pkg-months-grid">${cards}</div>
       </div>
@@ -1300,7 +1300,7 @@ function renderPackageForm(year, month) {
         <button class="btn btn-ghost btn-sm" id="pkg-back">← Meses</button>
         <div class="pkg-form-title">
           <h2>${MONTH_NAMES[month]} ${year}</h2>
-          <p>${totalRows} spots · ${pkgSlots.map(s => `4× ${s.label}`).join(' · ')}</p>
+          <p>${totalRows} spots · ${pkgSlots.map(s => `1× ${s.label}`).join(' / semana')}</p>
         </div>
         <div class="pkg-form-actions">
           <span id="pkg-save-count"></span>
