@@ -1257,8 +1257,8 @@ function renderPackageForm(year, month) {
     const slotNum    = slotCounters[key]++
     const existing   = bySlot[key][slotNum] || null
 
-    const rawDate  = existing?.date           || ''
-    const dateVal  = rawDate === '9999-01-01' ? '' : rawDate
+    const isTBD    = existing?.promotional_period === 'TBD'
+    const dateVal  = (existing?.date && !isTBD) ? existing.date : ''
     const campVal  = existing?.campaign_name  || ''
     const authVal  = existing?.authorship     || ''
     const textVal  = existing?.suggested_text || ''
@@ -1613,11 +1613,12 @@ async function savePackage(year, month) {
       continue
     }
 
-    // Sem data → salvar com data sentinela (Directus exige NOT NULL)
+    // Sem data → salvar com dia 1 do mês + flag TBD (Directus exige date NOT NULL)
     const noDate = !date
-    if (noDate) date = '9999-01-01'
+    if (noDate) date = `${year}-${String(month + 1).padStart(2, '0')}-01`
     const data = { date, newsletter: nl, format: fmt, campaign_name, authorship, suggested_text,
-      cover_link: cover_link || null, redirect_link: redirect_link || null }
+      cover_link: cover_link || null, redirect_link: redirect_link || null,
+      promotional_period: noDate ? 'TBD' : null }
 
     try {
       if (bookingId) {
