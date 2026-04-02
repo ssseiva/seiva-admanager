@@ -1612,7 +1612,23 @@ async function savePackage(year, month) {
       continue
     }
 
-    const data = { date: date || null, newsletter: nl, format: fmt, campaign_name, authorship, suggested_text,
+    // Se não tem data, auto-alocar o primeiro dia livre do mês
+    if (!date) {
+      const combined = [...allBookings, ...tempAdded]
+      const firstDay = toISODate(new Date(year, month, 1))
+      const found = findNearestFreeSlotDate(firstDay, nl, fmt, year, month, combined)
+      if (!found) {
+        if (statusEl) statusEl.innerHTML = `<span class="sh-err">✕ Sem data livre</span>`
+        row.classList.add('sh-row-error')
+        errors++
+        continue
+      }
+      date = found.date
+      row.querySelector('.pkg-date').value = date
+      const dispBtn = row.querySelector('.pkg-date-btn')
+      if (dispBtn) { dispBtn.textContent = formatDate(date); dispBtn.classList.add('has-date') }
+    }
+    const data = { date, newsletter: nl, format: fmt, campaign_name, authorship, suggested_text,
       cover_link: cover_link || null, redirect_link: redirect_link || null }
 
     try {
