@@ -1290,6 +1290,7 @@ function renderPackageForm(year, month) {
       <td class="pkg-td-link"><input class="sh-input" data-field="redirect_link" value="${escHtml(redirVal)}" placeholder="https://..." /></td>
       <td class="pkg-td-act">
         ${!isFirstInGroup ? `<button class="btn btn-ghost btn-sm pkg-copy-btn" data-src="${srcRowIdx}" data-dst="${i}" title="Copiar dados do primeiro slot desta semana">↩</button>` : ''}
+        ${bookId ? `<button class="btn btn-ghost btn-sm pkg-del-btn" data-id="${bookId}" data-row="${i}" title="Apagar" style="color:var(--red)">✕</button>` : ''}
         <span id="pkg-s-${i}">${statusHtml}</span>
       </td>
     </tr>`
@@ -1333,6 +1334,20 @@ function renderPackageForm(year, month) {
   document.getElementById('pkg-save-all').addEventListener('click', () => savePackage(year, month))
   document.querySelectorAll('.pkg-copy-btn').forEach(btn => {
     btn.addEventListener('click', () => copyRowContent(Number(btn.dataset.src), Number(btn.dataset.dst)))
+  })
+  document.querySelectorAll('.pkg-del-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Apagar este spot?')) return
+      const id = btn.dataset.id
+      try {
+        await deleteBooking(id)
+        allBookings = allBookings.filter(b => String(b.id) !== id)
+        if (window._ownBookings) window._ownBookings = window._ownBookings.filter(b => String(b.id) !== id)
+        renderPackageForm(year, month)
+      } catch (e) {
+        alert('Erro ao apagar: ' + e.message)
+      }
+    })
   })
   document.querySelectorAll('.pkg-date-btn').forEach(btn => {
     btn.addEventListener('click', () => {
