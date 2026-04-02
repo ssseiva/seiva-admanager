@@ -1337,15 +1337,24 @@ function renderPackageForm(year, month) {
   })
   document.querySelectorAll('.pkg-del-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
-      if (!confirm('Apagar este spot?')) return
+      if (!confirm('Limpar este spot?')) return
       const id = btn.dataset.id
+      const row = btn.closest('.pkg-row')
       try {
-        await deleteBooking(id)
-        allBookings = allBookings.filter(b => String(b.id) !== id)
-        if (window._ownBookings) window._ownBookings = window._ownBookings.filter(b => String(b.id) !== id)
+        const monthStr = `${year}-${String(month + 1).padStart(2, '0')}-01`
+        await updateBooking(id, {
+          date: monthStr, campaign_name: '', authorship: '', suggested_text: '',
+          cover_link: null, redirect_link: null, promotional_period: 'TBD',
+        })
+        // Atualizar estado local
+        const update = b => {
+          if (String(b.id) === id) Object.assign(b, { date: monthStr, campaign_name: '', authorship: '', suggested_text: '', cover_link: null, redirect_link: null, promotional_period: 'TBD' })
+        }
+        allBookings.forEach(update)
+        if (window._ownBookings) window._ownBookings.forEach(update)
         renderPackageForm(year, month)
       } catch (e) {
-        alert('Erro ao apagar: ' + e.message)
+        alert('Erro ao limpar: ' + e.message)
       }
     })
   })
