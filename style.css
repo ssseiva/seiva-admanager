@@ -1560,6 +1560,10 @@ tr:hover td { background: #fafaf8; }
   cursor: not-allowed;
   opacity: .4;
 }
+.pkdp-other-week {
+  opacity: .5;
+  border-style: dashed !important;
+}
 
 /* ─── Staff upcoming table ───────────────────────────────────────────── */
 .staff-upcoming-table {

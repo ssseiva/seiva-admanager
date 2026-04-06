@@ -1432,7 +1432,10 @@ function renderPackageForm(year, month) {
   document.querySelectorAll('.pkg-date-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const hidden = btn.previousElementSibling
-      openDatePickerPopup(hidden, btn, btn.dataset.nl, btn.dataset.fmt, year, month)
+      const row = btn.closest('.pkg-row')
+      const weekStart = row?.dataset.weekStart || ''
+      const weekEnd = row?.dataset.weekEnd || ''
+      openDatePickerPopup(hidden, btn, btn.dataset.nl, btn.dataset.fmt, year, month, weekStart, weekEnd)
     })
   })
   document.getElementById('pkg-body').addEventListener('input', updatePkgCounter)
@@ -1525,12 +1528,13 @@ function updatePkgCounter() {
   if (el) el.textContent = n > 0 ? `${n} linha${n > 1 ? 's' : ''} a salvar` : ''
 }
 
-function openDatePickerPopup(hiddenInput, triggerBtn, nl, fmt, year, month) {
+function openDatePickerPopup(hiddenInput, triggerBtn, nl, fmt, year, month, weekStart = '', weekEnd = '') {
   document.getElementById('pkg-datepicker-overlay')?.remove()
 
   const daysInMonth = new Date(year, month + 1, 0).getDate()
   const startDow    = new Date(year, month, 1).getDay()
   const DOW_LABELS  = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
+  const monthStr    = `${year}-${String(month+1).padStart(2,'0')}`
 
   // All bookings occupying this slot (any client), excluding current value
   const occupiedDates = new Set(
@@ -1552,7 +1556,6 @@ function openDatePickerPopup(hiddenInput, triggerBtn, nl, fmt, year, month) {
     if (cq.length) {
       const spp    = cq[0].slots_per_period
       const period = cq[0].period
-      // Committed = saved bookings (excl. current row) + unsaved form dates for same slot
       const committed = [
         ...allBookings.filter(b =>
           String(b.client_id) === String(session.clientId) &&
@@ -1586,21 +1589,25 @@ function openDatePickerPopup(hiddenInput, triggerBtn, nl, fmt, year, month) {
 
   for (let d = 1; d <= daysInMonth; d++) {
     const iso        = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
+    const outOfWeek  = weekStart && weekEnd && (iso < weekStart || iso > weekEnd)
     const blocked    = isDayBlocked(iso, allBlockedDates)
     const freqBlocked = !blocked && freqBlockedDates.has(iso)
-    const occupied   = !blocked && !freqBlocked && occupiedDates.has(iso)
+    const occupied   = !blocked && occupiedDates.has(iso)
     const selected   = iso === currentVal
     let cls = 'pkdp-day'
     if (blocked || freqBlocked) cls += ' pkdp-blocked'
     else if (occupied)          cls += ' pkdp-occupied'
     else                        cls += ' pkdp-available'
+    if (outOfWeek && !blocked)  cls += ' pkdp-other-week'
     if (selected)               cls += ' pkdp-selected'
-    const attrs = (!blocked && !freqBlocked && !occupied) ? `data-date="${iso}"` : 'aria-disabled="true"'
+    const isClickable = !blocked && !freqBlocked && !occupied
+    const attrs = isClickable ? `data-date="${iso}"` : 'aria-disabled="true"'
     gridHtml += `<div class="${cls}" ${attrs}>${d}</div>`
   }
 
   const nlLabel  = NEWSLETTERS[nl]?.label  || nl
   const fmtLabel = FORMATS[fmt]?.label     || fmt
+  const weekInfo = weekStart && weekEnd ? ` · Semana ${formatDate(weekStart)} – ${formatDate(weekEnd)}` : ''
 
   const overlay = document.createElement('div')
   overlay.id = 'pkg-datepicker-overlay'
@@ -1609,7 +1616,7 @@ function openDatePickerPopup(hiddenInput, triggerBtn, nl, fmt, year, month) {
       <div class="pkdp-header">
         <div>
           <div class="pkdp-title">${MONTH_NAMES[month]} ${year}</div>
-          <div class="pkdp-subtitle">${nlLabel} · ${fmtLabel}</div>
+          <div class="pkdp-subtitle">${nlLabel} · ${fmtLabel}${weekInfo}</div>
         </div>
         <button class="pkdp-close" type="button">✕</button>
       </div>
@@ -1626,11 +1633,67 @@ function openDatePickerPopup(hiddenInput, triggerBtn, nl, fmt, year, month) {
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove() })
   overlay.querySelector('.pkdp-close').addEventListener('click', () => overlay.remove())
 
-  overlay.querySelectorAll('.pkdp-available[data-date]').forEach(cell => {
+  overlay.querySelectorAll('[data-date]').forEach(cell => {
     cell.addEventListener('click', () => {
-      hiddenInput.value = cell.dataset.date
-      triggerBtn.textContent = formatDate(cell.dataset.date)
-      triggerBtn.classList.add('has-date')
+      const chosenDate = cell.dataset.date
+      const currentRow = hiddenInput.closest('.pkg-row')
+      const currentWeekStart = currentRow?.dataset.weekStart || ''
+      const currentWeekEnd = currentRow?.dataset.weekEnd || ''
+      const isOtherWeek = currentWeekStart && currentWeekEnd && (chosenDate < currentWeekStart || chosenDate > currentWeekEnd)
+
+      if (isOtherWeek && currentRow) {
+        // Find the target week's row for this slot type
+        const slotNl = currentRow.dataset.nl
+        const slotFmt = currentRow.dataset.fmt
+        const weeks = getMonthWeeks(year, month)
+        const targetWeekIdx = getWeekForDate(chosenDate, weeks)
+        if (targetWeekIdx < 0) { overlay.remove(); return }
+
+        const targetRow = document.querySelector(`#pkg-body .pkg-row[data-triplet="${targetWeekIdx}"][data-nl="${slotNl}"][data-fmt="${slotFmt}"]`)
+        if (!targetRow) { overlay.remove(); return }
+
+        // Check if target row already has data
+        const targetDateInput = targetRow.querySelector('.pkg-date')
+        if (targetDateInput?.value && targetRow.dataset.bookingId) {
+          if (!confirm('Essa semana já tem um spot preenchido para este slot. Substituir?')) {
+            overlay.remove()
+            return
+          }
+        }
+
+        // Move data from current row to target row
+        for (const f of ['isbn', 'campaign_name', 'authorship', 'suggested_text', 'extra_info', 'cover_link', 'redirect_link']) {
+          const src = currentRow.querySelector(`[data-field="${f}"]`)
+          const dst = targetRow.querySelector(`[data-field="${f}"]`)
+          if (src && dst) { dst.value = src.value; src.value = '' }
+        }
+
+        // Move booking ID
+        const srcBookingId = currentRow.dataset.bookingId
+        if (srcBookingId) {
+          targetRow.dataset.bookingId = srcBookingId
+          currentRow.dataset.bookingId = ''
+        }
+
+        // Clear current row date
+        hiddenInput.value = ''
+        triggerBtn.textContent = '📅 data'
+        triggerBtn.classList.remove('has-date')
+        currentRow.classList.remove('pkg-row-filled')
+
+        // Set target row date
+        const tDateInput = targetRow.querySelector('.pkg-date')
+        const tDateBtn = targetRow.querySelector('.pkg-date-btn')
+        if (tDateInput) tDateInput.value = chosenDate
+        if (tDateBtn) { tDateBtn.textContent = formatDate(chosenDate); tDateBtn.classList.add('has-date') }
+        targetRow.classList.add('pkg-row-filled')
+      } else {
+        // Same week — just set the date
+        hiddenInput.value = chosenDate
+        triggerBtn.textContent = formatDate(chosenDate)
+        triggerBtn.classList.add('has-date')
+      }
+
       overlay.remove()
       updatePkgCounter()
     })
