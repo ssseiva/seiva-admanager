@@ -1346,7 +1346,7 @@ function renderPackageForm(year, month) {
 
       return `<tr class="pkg-row ${slotDef.cls}${existing ? ' pkg-row-filled' : ''}${isWeekStart ? ' pkg-triplet-start' : ''}"
           data-row="${i}" data-triplet="${wIdx}" data-nl="${slotDef.nl}" data-fmt="${slotDef.fmt}" data-booking-id="${bookId}"
-          data-week-start="${week.startDate}" data-week-end="${week.endDate}">
+          data-week-start="${week.startDate}" data-week-end="${week.endDate}" data-slot-order="${pkgSlots.indexOf(slotDef)}">
         <td class="pkg-td-num">${isFirstInGroup ? `<span class="pkg-week-label">Sem ${wIdx + 1}<br><small>${week.label}</small></span>` : ''}</td>
         <td class="pkg-td-slot"><span class="pkg-slot-badge ${slotDef.cls}">${slotDef.label}</span></td>
         <td class="pkg-td-date">
@@ -1526,27 +1526,23 @@ function reorderWeekRows(weekIdx) {
   const rows = [...tbody.querySelectorAll(`.pkg-row[data-triplet="${weekIdx}"]`)]
   if (rows.length < 2) return
 
-  // Sort: rows with dates first (chronological), then empty
+  // Check if any row has a date
+  const anyHasDate = rows.some(r => r.querySelector('.pkg-date')?.value)
+
   rows.sort((a, b) => {
-    const dateA = a.querySelector('.pkg-date')?.value || ''
-    const dateB = b.querySelector('.pkg-date')?.value || ''
-    if (dateA && dateB) return dateA.localeCompare(dateB)
-    if (dateA) return -1
-    if (dateB) return 1
-    return 0
+    if (anyHasDate) {
+      // Rows with dates first (chronological), then empty by original order
+      const dateA = a.querySelector('.pkg-date')?.value || ''
+      const dateB = b.querySelector('.pkg-date')?.value || ''
+      if (dateA && dateB) return dateA.localeCompare(dateB)
+      if (dateA) return -1
+      if (dateB) return 1
+    }
+    // No dates or both empty: use original slot order
+    return (parseInt(a.dataset.slotOrder) || 0) - (parseInt(b.dataset.slotOrder) || 0)
   })
 
-  // Re-insert in order (after the first row's previous sibling, or at the position of the first row)
-  const firstRow = tbody.querySelector(`.pkg-row[data-triplet="${weekIdx}"]`)
-  const anchor = firstRow?.previousElementSibling
-  for (const row of rows) {
-    if (anchor) {
-      anchor.after(row)
-    } else {
-      tbody.prepend(row)
-    }
-  }
-  // Fix: ensure rows are consecutive after the anchor
+  // Re-insert rows in sorted order
   for (let i = 1; i < rows.length; i++) {
     rows[i - 1].after(rows[i])
   }

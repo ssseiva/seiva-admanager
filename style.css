@@ -1294,13 +1294,16 @@ tr:hover td { background: #fafaf8; }
   flex-direction: column;
   height: 100%;
   overflow: hidden;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 .pkg-form-header {
   display: flex;
   align-items: center;
   gap: 1rem;
-  padding: .65rem max(1.5rem, calc((100% - 1160px) / 2));
+  padding: .65rem 1.5rem;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
@@ -1327,7 +1330,7 @@ tr:hover td { background: #fafaf8; }
 .pkg-table-wrap {
   flex: 1;
   overflow: auto;
-  padding: 0 max(1.5rem, calc((100% - 1160px) / 2)) 2rem;
+  padding: 0 1.5rem 2rem;
 }
 
 .pkg-table {
