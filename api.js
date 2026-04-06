@@ -1,5 +1,5 @@
 // api.js — wrapper para todas as chamadas ao Directus
-import { DIRECTUS_URL } from './config.js'
+import { DIRECTUS_URL, SERVICE_TOKEN } from './config.js'
 import { getSession, refreshToken, logout } from './auth.js'
 
 async function request(path, options = {}) {
@@ -107,8 +107,13 @@ export async function deleteQuota(id) {
 
 export async function getBookByISBN(isbn) {
   const clean = isbn.replace(/[^0-9Xx]/g, '')
-  const results = await request(`/items/biblioteca?filter[isbn][_eq]=${clean}&fields=isbn,titulo,autor,editora,sinopse,capa_url&limit=1`)
-  return results?.[0] || null
+  // Usa service token pois anunciantes não têm acesso direto à collection biblioteca
+  const res = await fetch(`${DIRECTUS_URL}/items/biblioteca?filter[isbn][_eq]=${clean}&fields=isbn,titulo,autor,editora,sinopse,capa_url&limit=1`, {
+    headers: { 'Authorization': `Bearer ${SERVICE_TOKEN}` },
+  })
+  if (!res.ok) return null
+  const data = await res.json()
+  return data?.data?.[0] || null
 }
 
 // ─── Datas Bloqueadas ─────────────────────────────────────────────────────────
