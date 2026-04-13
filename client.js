@@ -20,8 +20,8 @@ const COLS = [
   { key: 'campaign_name',      label: 'Nome da Campanha',   w: 220, type: 'text' },
   { key: 'authorship',         label: 'Autoria',            w: 158, type: 'text' },
   { key: 'isbn',               label: 'ISBN',               w: 120, type: 'text' },
-  { key: 'suggested_text',     label: 'Texto Sugerido',     w: 290, type: 'text' },
-  { key: 'extra_info',         label: 'Informações Extras', w: 200, type: 'text' },
+  { key: 'suggested_text',     label: 'Texto Sugerido',     w: 130, type: 'longtext' },
+  { key: 'extra_info',         label: 'Informações Extras', w: 130, type: 'longtext' },
   { key: 'promotional_period', label: 'Período Promo',      w: 138, type: 'text' },
   { key: 'cover_link',         label: 'Link da Capa',       w: 190, type: 'text' },
   { key: 'redirect_link',      label: 'Link Redirect',      w: 190, type: 'text' },
@@ -37,6 +37,8 @@ let active    = null    // { ri, ci } — célula com editor inline (não-data)
 let activeKey = null    // rowKey da linha destacada
 let dpRi      = null    // índice da linha com datepicker aberto
 let dpDate    = new Date()
+let tpRi      = null    // índice da linha com popup de texto aberto
+let tpCi      = null    // índice da coluna com popup de texto aberto
 let newCnt    = 0
 
 // ── DOM ───────────────────────────────────────────────────────────────────────
@@ -51,6 +53,9 @@ const $addBar  = document.getElementById('add-row-bar')
 const $dp      = document.getElementById('datepicker')
 const $dpTtl   = document.getElementById('dp-title')
 const $dpGrid  = document.getElementById('dp-grid')
+const $tp      = document.getElementById('text-popup')
+const $tpLabel = document.getElementById('tp-label')
+const $tpArea  = document.getElementById('tp-area')
 const $toast   = document.getElementById('toast')
 
 $name.textContent = clientName
@@ -64,17 +69,18 @@ document.getElementById('dp-next').addEventListener('mousedown', e => e.stopProp
 document.getElementById('dp-prev').addEventListener('click', () => { dpDate.setMonth(dpDate.getMonth()-1); renderDp() })
 document.getElementById('dp-next').addEventListener('click', () => { dpDate.setMonth(dpDate.getMonth()+1); renderDp() })
 
-// Fecha datepicker ao clicar fora (fase capture, antes do mousedown das células)
+// Fecha popups ao clicar fora (fase capture)
 document.addEventListener('mousedown', e => {
-  if (dpRi === null) return
-  if ($dp.contains(e.target)) return       // clique dentro do picker → mantém
-  // clique numa célula de data → o handler da célula vai reabrir para a nova linha
-  hideDp()
+  if (dpRi !== null && !$dp.contains(e.target)) hideDp()
+  if (tpRi !== null && !$tp.contains(e.target)) hideTextPopup()
 }, true)
 
-// Fecha datepicker com Escape
+// Fecha popups com Escape
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && dpRi !== null) { e.preventDefault(); hideDp() }
+  if (e.key === 'Escape') {
+    if (dpRi !== null) { e.preventDefault(); hideDp() }
+    if (tpRi !== null) { e.preventDefault(); hideTextPopup() }
+  }
 })
 
 // ── Init ──────────────────────────────────────────────────────────────────────
@@ -231,6 +237,54 @@ function hideDp() {
   dpRi = null
 }
 
+// ── Popup de texto longo ───────────────────────────────────────────────────────
+function openTextPopup(ri, ci, anchorEl) {
+  tpRi = ri; tpCi = ci
+  activeKey = rowKey(rows[ri])
+  const col = COLS[ci]
+
+  $tpLabel.textContent = col.label
+  $tpArea.value = rows[ri][col.key] || ''
+
+  // Posiciona abaixo (ou acima) da célula
+  const rect = anchorEl.getBoundingClientRect()
+  const popW = 380, popH = 180
+  let top  = rect.bottom + 4
+  let left = rect.left
+  if (left + popW > window.innerWidth - 4) left = window.innerWidth - popW - 4
+  if (top  + popH > window.innerHeight)    top  = rect.top - popH - 4
+  $tp.style.top  = top  + 'px'
+  $tp.style.left = left + 'px'
+  $tp.style.display = 'block'
+
+  anchorEl.classList.add('dp-open')
+
+  // Destaca linha
+  document.querySelectorAll('.sheet-row').forEach(tr => tr.classList.remove('row-active'))
+  getTr(ri)?.classList.add('row-active')
+
+  $tpArea.focus()
+  const len = $tpArea.value.length
+  $tpArea.setSelectionRange(len, len)
+
+  $tpArea.oninput = () => {
+    if (tpRi === null) return
+    rows[tpRi][COLS[tpCi].key] = $tpArea.value
+    markDirty(tpRi)
+    // Atualiza preview na célula em tempo real
+    const disp = getTd(tpRi, tpCi)?.querySelector('.cell-disp')
+    if (disp) disp.textContent = $tpArea.value
+  }
+}
+
+function hideTextPopup() {
+  if (tpRi === null) return
+  $tp.style.display = 'none'
+  $tbody.querySelectorAll('td.dp-open').forEach(td => td.classList.remove('dp-open'))
+  tpRi = null; tpCi = null
+  $tpArea.oninput = null
+}
+
 function renderDp() {
   const y = dpDate.getFullYear(), m = dpDate.getMonth()
   $dpTtl.textContent = `${MESES[m]} ${y}`
@@ -294,6 +348,17 @@ function activateCell(ri, ci) {
     // Abre picker para esta linha (fecha qualquer picker anterior)
     hideDp()
     openDp(ri)
+    return
+  }
+
+  // ── Célula LONGTEXT → popup de texto ─────────────────────────────────────
+  if (col.type === 'longtext') {
+    if (active) closeCell(active.ri, active.ci)
+    hideDp()
+    if (tpRi === ri && tpCi === ci) return  // já aberto: não fecha
+    hideTextPopup()
+    const td = getTd(ri, ci); if (!td) return
+    openTextPopup(ri, ci, td)
     return
   }
 
@@ -423,7 +488,7 @@ function updateSaveBtn() {
 async function saveAll() {
   if (!dirty.size) return
   if (active) closeCell(active.ri, active.ci)
-  hideDp()
+  hideDp(); hideTextPopup()
   $save.disabled = true; $save.textContent = 'Salvando…'
 
   const errs = []
@@ -457,7 +522,7 @@ async function saveAll() {
 // ── Adicionar / Excluir ───────────────────────────────────────────────────────
 function addRow() {
   if (active) closeCell(active.ri, active.ci)
-  hideDp()
+  hideDp(); hideTextPopup()
   newCnt++
   const row = {
     _tid: `new-${newCnt}`, client_id: clientId,
@@ -484,6 +549,7 @@ async function deleteRow(ri) {
   }
   if (active?.ri === ri) { active = null }
   if (dpRi === ri) hideDp()
+  if (tpRi === ri) hideTextPopup()
   if (activeKey === rowKey(row)) activeKey = null
   rows.splice(ri, 1)
   dirty.delete(rowKey(row))
