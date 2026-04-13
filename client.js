@@ -156,8 +156,14 @@ function buildTd(row, ri, col, ci) {
     disp.className   = 'cell-disp'
     disp.textContent = dispVal(col, row[col.key])
     td.appendChild(disp)
-    // mousedown abre o editor / datepicker
-    td.addEventListener('mousedown', e => { e.preventDefault(); activateCell(ri, ci) })
+    // mousedown abre o editor / datepicker.
+    // Se o alvo já é o editor aberto (.cell-ed), deixa o browser agir normalmente
+    // (seleção de texto, posicionamento de cursor, drag-to-select, etc.)
+    td.addEventListener('mousedown', e => {
+      if (e.target.closest('.cell-ed')) return
+      e.preventDefault()
+      activateCell(ri, ci)
+    })
   }
   return td
 }
