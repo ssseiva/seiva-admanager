@@ -16,7 +16,7 @@ const COLS = [
   { key: 'date',               label: 'Data',              w: 108, type: 'date' },
   { key: 'newsletter',         label: 'Newsletter',         w:  96, type: 'sel', opts: [['aurora','Aurora'],['indice','Índice']], readonly: true },
   { key: 'format',             label: 'Formato',            w: 120, type: 'sel', opts: [['destaque','Destaque'],['corpo','Corpo do Email']], readonly: true },
-  { key: 'status',             label: 'Status',             w: 130, type: 'badge' },
+  { key: 'status',             label: 'Status',             w: 130, type: 'status' },
   { key: 'campaign_name',      label: 'Nome da Campanha',   w: 220, type: 'text' },
   { key: 'authorship',         label: 'Autoria',            w: 158, type: 'text' },
   { key: 'isbn',               label: 'ISBN',               w: 120, type: 'text' },
@@ -27,7 +27,8 @@ const COLS = [
   { key: 'redirect_link',      label: 'Link Redirect',      w: 190, type: 'link' },
 ]
 const DATE_CI     = COLS.findIndex(c => c.type === 'date')
-const EDITABLE_CI = COLS.map((c,i) => c.type !== 'badge' && !c.readonly ? i : -1).filter(i => i >= 0)
+const EDITABLE_CI = COLS.map((c,i) => c.type !== 'badge' && c.type !== 'status' && !c.readonly ? i : -1).filter(i => i >= 0)
+// status fica fora do Tab automático mas é clicável
 
 // ── Estado ────────────────────────────────────────────────────────────────────
 let rows      = []
@@ -194,12 +195,17 @@ function buildTd(row, ri, col, ci) {
   const td = document.createElement('td')
   td.dataset.ri = ri; td.dataset.ci = ci
 
-  if (col.type === 'badge') {
-    const cfg = BOOKING_STATUS[row.status] || BOOKING_STATUS.rascunho
-    const wrap = document.createElement('div'); wrap.className = 'cell-disp'
-    const sp = document.createElement('span'); sp.className = 's-badge'
-    sp.textContent = cfg.label; sp.style.cssText = `background:${cfg.bg};color:${cfg.color}`
-    wrap.appendChild(sp); td.appendChild(wrap)
+  if (col.type === 'status') {
+    td.appendChild(buildDisp(col, row[col.key]))
+    // Só rascunho e pendente são editáveis pelo cliente
+    if (['rascunho', 'pendente'].includes(row.status)) {
+      td.classList.add('status-editable')
+      td.addEventListener('mousedown', e => {
+        if (e.target.closest('.cell-ed')) return
+        e.preventDefault()
+        activateCell(ri, ci)
+      })
+    }
   } else if (col.readonly) {
     // Campo somente-leitura: exibe valor, não abre editor
     const disp = buildDisp(col, row[col.key])
@@ -227,11 +233,17 @@ function dispVal(col, val) {
   return val
 }
 
-// Cria o div de display para uma célula (suporta link clicável)
+// Cria o div de display para uma célula (suporta badge de status e link clicável)
 function buildDisp(col, val) {
   const disp = document.createElement('div')
   disp.className = 'cell-disp'
-  if (col.type === 'link' && val) {
+  if (col.type === 'status') {
+    const cfg = BOOKING_STATUS[val] || BOOKING_STATUS.rascunho
+    const sp = document.createElement('span'); sp.className = 's-badge'
+    sp.textContent = cfg.label
+    sp.style.cssText = `background:${cfg.bg};color:${cfg.color}`
+    disp.appendChild(sp)
+  } else if (col.type === 'link' && val) {
     const a = document.createElement('a')
     a.href      = /^https?:\/\//i.test(val) ? val : 'https://' + val
     a.target    = '_blank'
@@ -411,9 +423,13 @@ function pickDate(ds) {
 }
 
 // ── Ativação de célula ────────────────────────────────────────────────────────
+// Opções de status disponíveis para o cliente
+const STATUS_CLIENT_OPTS = [['rascunho','Rascunho'],['pendente','Submetido pelo cliente']]
+
 function activateCell(ri, ci) {
   const col = COLS[ci]
   if (!col || col.type === 'badge' || col.readonly) return
+  if (col.type === 'status' && !['rascunho','pendente'].includes(rows[ri]?.status)) return
 
   // ── Célula de DATA → abre datepicker ──────────────────────────────────────
   if (col.type === 'date') {
@@ -459,9 +475,10 @@ function activateCell(ri, ci) {
   td.innerHTML = ''
 
   let ed
-  if (col.type === 'sel') {
+  if (col.type === 'sel' || col.type === 'status') {
     ed = document.createElement('select'); ed.className = 'cell-ed'
-    col.opts.forEach(([v,l]) => {
+    const opts = col.type === 'status' ? STATUS_CLIENT_OPTS : col.opts
+    opts.forEach(([v,l]) => {
       const o = document.createElement('option'); o.value=v; o.textContent=l
       if (rows[ri][col.key] === v) o.selected = true
       ed.appendChild(o)
