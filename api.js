@@ -116,6 +116,18 @@ export async function getBookByISBN(isbn) {
   return data?.data?.[0] || null
 }
 
+// ─── Slots ocupados (todos os clientes, para bloquear no datepicker) ──────────
+
+export async function getAllBookingSlots() {
+  // Busca apenas data+newsletter+format+status+id de bookings confirmados (pendente/aprovado/veiculado)
+  // para saber quais datas já estão tomadas por qualquer cliente
+  return request(
+    '/items/ad_bookings?fields=id,date,newsletter,format,status,client_id' +
+    '&filter[status][_in][]=pendente&filter[status][_in][]=aprovado&filter[status][_in][]=veiculado' +
+    '&limit=-1'
+  )
+}
+
 // ─── Datas Bloqueadas ─────────────────────────────────────────────────────────
 
 export async function getBlockedDates() {

@@ -1,6 +1,6 @@
 // client.js — Interface planilha para anunciantes
 import { requireAuth, logout } from './auth.js'
-import { getBookings, createBooking, updateBooking, deleteBooking, getBlockedDates } from './api.js'
+import { getBookings, createBooking, updateBooking, deleteBooking, getBlockedDates, getAllBookingSlots } from './api.js'
 import { FERIADOS_BR, BOOKING_STATUS, formatDate, toISODate } from './config.js'
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
@@ -14,8 +14,8 @@ const clientName = session.clientName || 'Anunciante'
 // ── Colunas ───────────────────────────────────────────────────────────────────
 const COLS = [
   { key: 'date',               label: 'Data',              w: 108, type: 'date' },
-  { key: 'newsletter',         label: 'Newsletter',         w:  96, type: 'sel', opts: [['aurora','Aurora'],['indice','Índice']] },
-  { key: 'format',             label: 'Formato',            w: 120, type: 'sel', opts: [['destaque','Destaque'],['corpo','Corpo do Email']] },
+  { key: 'newsletter',         label: 'Newsletter',         w:  96, type: 'sel', opts: [['aurora','Aurora'],['indice','Índice']], readonly: true },
+  { key: 'format',             label: 'Formato',            w: 120, type: 'sel', opts: [['destaque','Destaque'],['corpo','Corpo do Email']], readonly: true },
   { key: 'status',             label: 'Status',             w: 130, type: 'badge' },
   { key: 'campaign_name',      label: 'Nome da Campanha',   w: 220, type: 'text' },
   { key: 'authorship',         label: 'Autoria',            w: 158, type: 'text' },
@@ -27,11 +27,12 @@ const COLS = [
   { key: 'redirect_link',      label: 'Link Redirect',      w: 190, type: 'link' },
 ]
 const DATE_CI     = COLS.findIndex(c => c.type === 'date')
-const EDITABLE_CI = COLS.map((c,i) => c.type !== 'badge' ? i : -1).filter(i => i >= 0)
+const EDITABLE_CI = COLS.map((c,i) => c.type !== 'badge' && !c.readonly ? i : -1).filter(i => i >= 0)
 
 // ── Estado ────────────────────────────────────────────────────────────────────
 let rows      = []
 let blocked   = []
+let allSlots  = []   // bookings confirmados de todos os clientes (para bloquear datas)
 let dirty     = new Set()
 let active    = null    // { ri, ci } — célula com editor inline (não-data)
 let activeGen = 0       // incrementa a cada abertura; invalida timers de blur antigos
@@ -105,12 +106,14 @@ document.addEventListener('keydown', e => {
 // ── Init ──────────────────────────────────────────────────────────────────────
 async function init() {
   try {
-    const [own, blk] = await Promise.all([
+    const [own, blk, slots] = await Promise.all([
       getBookings({ clientId }),
       getBlockedDates(),
+      getAllBookingSlots(),
     ])
-    rows    = (own || []).map(b => ({ ...b }))
-    blocked = blk || []
+    rows     = (own || []).map(b => ({ ...b }))
+    blocked  = blk   || []
+    allSlots = slots || []
 
     buildThead()
     sortAndRebuild()
@@ -197,6 +200,11 @@ function buildTd(row, ri, col, ci) {
     const sp = document.createElement('span'); sp.className = 's-badge'
     sp.textContent = cfg.label; sp.style.cssText = `background:${cfg.bg};color:${cfg.color}`
     wrap.appendChild(sp); td.appendChild(wrap)
+  } else if (col.readonly) {
+    // Campo somente-leitura: exibe valor, não abre editor
+    const disp = buildDisp(col, row[col.key])
+    disp.classList.add('cell-readonly')
+    td.appendChild(disp)
   } else {
     td.appendChild(buildDisp(col, row[col.key]))
     td.addEventListener('mousedown', e => {
@@ -361,10 +369,22 @@ function renderDp() {
   const selDs = dpRi !== null ? rows[dpRi]?.date : null
   const days  = new Date(y, m+1, 0).getDate()
 
+  // Datas já ocupadas por qualquer cliente para este newsletter+formato
+  const curRow = dpRi !== null ? rows[dpRi] : null
+  const takenDates = new Set(
+    allSlots
+      .filter(s =>
+        s.newsletter === curRow?.newsletter &&
+        s.format     === curRow?.format     &&
+        s.id         !== curRow?.id          // exclui a própria linha em edição
+      )
+      .map(s => s.date)
+  )
+
   for (let d = 1; d <= days; d++) {
     const ds  = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
     const dow = new Date(ds+'T12:00:00').getDay()
-    const isBlk = dow===0 || dow===6 || FERIADOS_BR.includes(ds) || blocked.some(b => b.date===ds)
+    const isBlk = dow===0 || dow===6 || FERIADOS_BR.includes(ds) || blocked.some(b => b.date===ds) || takenDates.has(ds)
     const el = document.createElement('div')
     el.textContent = d
     el.className   = 'dp-d ' + (isBlk ? 'dp-blocked' : 'dp-free')
@@ -393,7 +413,7 @@ function pickDate(ds) {
 // ── Ativação de célula ────────────────────────────────────────────────────────
 function activateCell(ri, ci) {
   const col = COLS[ci]
-  if (!col || col.type === 'badge') return
+  if (!col || col.type === 'badge' || col.readonly) return
 
   // ── Célula de DATA → abre datepicker ──────────────────────────────────────
   if (col.type === 'date') {
