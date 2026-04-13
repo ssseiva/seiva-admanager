@@ -156,12 +156,12 @@ function buildTd(row, ri, col, ci) {
     disp.className   = 'cell-disp'
     disp.textContent = dispVal(col, row[col.key])
     td.appendChild(disp)
-    // mousedown abre o editor / datepicker.
-    // Se o alvo já é o editor aberto (.cell-ed), deixa o browser agir normalmente
-    // (seleção de texto, posicionamento de cursor, drag-to-select, etc.)
+    // mousedown abre o editor.
+    // Não chamamos preventDefault em nenhum caso para que o browser posicione
+    // o cursor normalmente (seleção de texto, drag-to-select, clique para mover cursor).
+    // O único efeito colateral (td receber foco visual) não ocorre pois td não é focusável.
     td.addEventListener('mousedown', e => {
-      if (e.target.closest('.cell-ed')) return
-      e.preventDefault()
+      if (e.target.closest('.cell-ed')) return   // editor já aberto: browser cuida de tudo
       activateCell(ri, ci)
     })
   }
@@ -338,7 +338,6 @@ function activateCell(ri, ci) {
 
   td.appendChild(ed)
   ed.focus()
-  if (ed.type === 'text') ed.select?.()
 }
 
 // ── Fecha editor inline ───────────────────────────────────────────────────────
