@@ -600,8 +600,9 @@ async function isbnAutoFill(ri) {
 
   try {
     const book = await getBookByISBN(isbn)
+    const isEmpty = v => !v || v === '-'
     const fill = (key, val) => {
-      if (val && !row[key]) {
+      if (val && isEmpty(row[key])) {
         row[key] = val
         markDirty(ri)
         const ci = COLS.findIndex(c => c.key === key)
@@ -614,8 +615,13 @@ async function isbnAutoFill(ri) {
       fill('authorship', book.autor)
       fill('suggested_text', book.sinopse)
     }
-    // Sempre preencher capa via Metabooks (versão grande)
-    fill('cover_link', METABOOKS_COVER_URL(isbn))
+    // Sempre preencher capa via Metabooks (sobrescreve mesmo se já tiver valor)
+    const coverUrl = METABOOKS_COVER_URL(isbn)
+    row.cover_link = coverUrl
+    markDirty(ri)
+    const coverCi = COLS.findIndex(c => c.key === 'cover_link')
+    const coverTd = getTd(ri, coverCi)
+    if (coverTd) { coverTd.innerHTML = ''; coverTd.appendChild(buildDisp(COLS[coverCi], coverUrl)) }
   } catch (e) {
     console.warn('ISBN lookup failed:', e)
   }
