@@ -21,7 +21,7 @@ const COLS = [
   { key: 'campaign_name',      label: 'Nome da Campanha',   w: 220, type: 'text' },
   { key: 'authorship',         label: 'Autoria',            w: 158, type: 'text' },
   { key: 'suggested_text',     label: 'Texto',              w: 160, type: 'longtext' },
-  { key: 'extra_info',         label: 'Informações Extras', w: 160, type: 'longtext' },
+  { key: 'extra_info',         label: 'Cupom',              w: 160, type: 'longtext' },
   { key: 'promotional_period', label: 'Período Promo',      w: 138, type: 'text' },
   { key: 'cover_link',         label: 'Imagem',             w: 190, type: 'link' },
   { key: 'redirect_link',      label: 'Link Redirect',      w: 190, type: 'link' },
@@ -165,6 +165,9 @@ async function init() {
     $loading.style.display = 'none'
     $table.style.display   = ''
     $addBar.style.display  = ''
+
+    // Restaurar rascunho local (alterações não salvas)
+    restoreAutosaveIfAny()
   } catch(e) {
     $loading.textContent = 'Erro ao carregar. Recarregue a página.'
     console.error(e)
@@ -669,11 +672,55 @@ function prevEC(ci) { const i = EDITABLE_CI.indexOf(ci); return i > 0 ? EDITABLE
 function getTd(ri,ci) { return $tbody.querySelector(`tr[data-ri="${ri}"] td[data-ci="${ci}"]`) }
 function getTr(ri)    { return $tbody.querySelector(`tr[data-ri="${ri}"]`) }
 
+// ── Autosave local (localStorage) ────────────────────────────────────────────
+const AUTOSAVE_KEY = `seiva_autosave_client_${clientId}`
+let autosaveTimer = null
+function scheduleAutosave() {
+  clearTimeout(autosaveTimer)
+  autosaveTimer = setTimeout(() => {
+    const dirtyRows = [...dirty].map(k => rows.find(r => rowKey(r) === k)).filter(Boolean)
+    if (dirtyRows.length) {
+      localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({ ts: Date.now(), rows: dirtyRows }))
+    } else {
+      localStorage.removeItem(AUTOSAVE_KEY)
+    }
+  }, 500)
+}
+
+function restoreAutosaveIfAny() {
+  const raw = localStorage.getItem(AUTOSAVE_KEY)
+  if (!raw) return
+  try {
+    const backup = JSON.parse(raw)
+    if (!backup?.rows?.length) return
+    const when = new Date(backup.ts).toLocaleString('pt-BR')
+    if (!confirm(`Há alterações não salvas de ${when}. Deseja restaurar?`)) {
+      localStorage.removeItem(AUTOSAVE_KEY); return
+    }
+    for (const saved of backup.rows) {
+      const key = String(saved.id || saved._tid)
+      const idx = rows.findIndex(r => rowKey(r) === key)
+      if (idx >= 0) {
+        rows[idx] = { ...rows[idx], ...saved }
+        dirty.add(rowKey(rows[idx]))
+      } else if (saved._tid) {
+        // Linha nova que não foi salva no servidor
+        rows.push(saved)
+        dirty.add(rowKey(saved))
+      }
+    }
+    sortAndRebuild()
+    updateSaveBtn()
+    toast('Rascunho restaurado!','ok')
+  } catch(e) { console.warn('Falha ao restaurar autosave:', e) }
+}
+
 // ── Dirty / Save ──────────────────────────────────────────────────────────────
 function markDirty(ri) {
   dirty.add(rowKey(rows[ri]))
   getTr(ri)?.classList.add('row-dirty')
   updateSaveBtn()
+  scheduleAutosave()
 }
 
 function updateSaveBtn() {
@@ -713,6 +760,7 @@ async function saveAll() {
   }
 
   dirty.clear()
+  if (!errs.length) localStorage.removeItem(AUTOSAVE_KEY)
   updateSaveBtn()
   errs.length ? toast('Erros: '+errs.join(' | '),'err') : toast('Salvo!','ok')
 }
