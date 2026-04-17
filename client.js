@@ -207,25 +207,13 @@ function mkTh(tr, txt, cls) {
   tr.appendChild(th); return th
 }
 
-// ── Semana ISO (para alternar cores) ─────────────────────────────────────────
-function isoWeek(dateStr) {
-  if (!dateStr) return -1
-  const d = new Date(dateStr + 'T12:00:00')
-  d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7))
-  const jan1 = new Date(d.getFullYear(), 0, 1)
-  return Math.ceil((((d - jan1) / 86400000) + 1) / 7)
-}
-
 // ── Linhas ────────────────────────────────────────────────────────────────────
+// Alterna cor a cada 3 linhas (3 spots por semana)
 function buildTbody() {
   $tbody.innerHTML = ''
-  // Calcula alternância de cor por semana
-  let weekIdx = 0, lastWeek = null
   rows.forEach((row, ri) => {
-    const wk = isoWeek(row.date)
-    if (wk !== lastWeek && lastWeek !== null) weekIdx++
-    lastWeek = wk
-    $tbody.appendChild(buildTr(row, ri, weekIdx % 2 === 1))
+    const altWeek = Math.floor(ri / 3) % 2 === 1
+    $tbody.appendChild(buildTr(row, ri, altWeek))
   })
 }
 
@@ -598,11 +586,15 @@ async function isbnAutoFill(ri) {
   const isbnTd = getTd(ri, COLS.findIndex(c => c.key === 'isbn'))
   if (isbnTd) { isbnTd.innerHTML = ''; isbnTd.appendChild(buildDisp(COLS.find(c=>c.key==='isbn'), isbn)) }
 
+  // Detecta se ISBN mudou — se sim, sobrescreve todos os campos
+  const isbnChanged = row._lastIsbn && row._lastIsbn !== isbn
+  row._lastIsbn = isbn
+
   try {
     const book = await getBookByISBN(isbn)
     const isEmpty = v => !v || v === '-'
     const fill = (key, val) => {
-      if (val && isEmpty(row[key])) {
+      if (val && (isbnChanged || isEmpty(row[key]))) {
         row[key] = val
         markDirty(ri)
         const ci = COLS.findIndex(c => c.key === key)
