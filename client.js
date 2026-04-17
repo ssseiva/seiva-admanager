@@ -124,15 +124,17 @@ document.addEventListener('keydown', e => {
     if (tpRi !== null) hideTextPopup()
     applyUndo()
   }
-  // Ctrl+V — cola a linha copiada na linha ativa
+  // Ctrl+V — cola a linha copiada na linha ativa (override mesmo dentro de inputs)
   if ((e.ctrlKey || e.metaKey) && e.key === 'v' && !e.shiftKey) {
-    // Se estiver editando um campo, deixa o browser colar normalmente
-    if (active || tpRi !== null) return
+    // Só intercepta se houver uma linha copiada; senão deixa o paste normal
     if (!copiedRow) return
-    if (!activeKey) { toast('Clique em uma linha primeiro para colar','err'); return }
+    if (!activeKey) { toast('Clique em uma linha antes de colar','err'); return }
     const ri = rows.findIndex(r => rowKey(r) === activeKey)
     if (ri < 0) return
     e.preventDefault()
+    // Fecha edição aberta antes de colar
+    if (active) closeCell(active.ri, active.ci)
+    if (tpRi !== null) hideTextPopup()
     pasteRow(ri)
   }
 })

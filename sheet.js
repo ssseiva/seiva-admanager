@@ -121,12 +121,13 @@ document.addEventListener('keydown', e => {
     applyUndo()
   }
   if ((e.ctrlKey || e.metaKey) && e.key === 'v' && !e.shiftKey) {
-    if (active || tpRi !== null) return
     if (!copiedRow) return
-    if (!activeKey) { toast('Clique em uma linha primeiro para colar','err'); return }
+    if (!activeKey) { toast('Clique em uma linha antes de colar','err'); return }
     const ri = rows.findIndex(r => rowKey(r) === activeKey)
     if (ri < 0) return
     e.preventDefault()
+    if (active) closeCell(active.ri, active.ci)
+    if (tpRi !== null) hideTextPopup()
     pasteRow(ri)
   }
 })
