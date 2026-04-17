@@ -45,6 +45,7 @@ let tpCi      = null    // índice da coluna com popup de texto aberto
 let resizing  = null    // { ci, startX, startW, el } — resize de coluna em curso
 let newCnt    = 0
 let undoStack = []   // pilha de undo: { ri, key, oldVal, rowId }
+let copiedRow = null  // campos copiados de uma linha
 
 // ── DOM ───────────────────────────────────────────────────────────────────────
 const $name    = document.getElementById('client-name')
@@ -114,11 +115,25 @@ document.addEventListener('keydown', e => {
     if (dpRi !== null) { e.preventDefault(); hideDp() }
     if (tpRi !== null) { e.preventDefault(); hideTextPopup() }
   }
-  // Ctrl+Z — desfazer última alteração de célula
+  // Ctrl+Z — desfazer última alteração (funciona mesmo durante edição)
   if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
-    if (active || dpRi !== null || tpRi !== null) return  // não interfere se editando
     e.preventDefault()
+    // Fecha célula/popup aberto para commitar o valor atual antes do undo
+    if (active) closeCell(active.ri, active.ci)
+    if (dpRi !== null) hideDp()
+    if (tpRi !== null) hideTextPopup()
     applyUndo()
+  }
+  // Ctrl+V — cola a linha copiada na linha ativa
+  if ((e.ctrlKey || e.metaKey) && e.key === 'v' && !e.shiftKey) {
+    // Se estiver editando um campo, deixa o browser colar normalmente
+    if (active || tpRi !== null) return
+    if (!copiedRow) return
+    if (!activeKey) { toast('Clique em uma linha primeiro para colar','err'); return }
+    const ri = rows.findIndex(r => rowKey(r) === activeKey)
+    if (ri < 0) return
+    e.preventDefault()
+    pasteRow(ri)
   }
 })
 
@@ -235,6 +250,10 @@ function buildTr(row, ri, altWeek) {
   COLS.forEach((col, ci) => tr.appendChild(buildTd(row, ri, col, ci)))
 
   const tdA = document.createElement('td'); tdA.className = 'col-act'
+  const btnCopy = document.createElement('button')
+  btnCopy.className = 'btn-copy'; btnCopy.textContent = '⎘'; btnCopy.title = 'Copiar linha (Ctrl+V para colar)'
+  btnCopy.addEventListener('mousedown', e => { e.preventDefault(); copyRow(ri) })
+  tdA.appendChild(btnCopy)
   const btn = document.createElement('button')
   btn.className = 'btn-del'; btn.textContent = '✕'; btn.title = 'Limpar informações'
   btn.addEventListener('mousedown', e => { e.preventDefault(); clearRow(ri) })
@@ -589,15 +608,14 @@ async function isbnAutoFill(ri) {
   const isbnTd = getTd(ri, COLS.findIndex(c => c.key === 'isbn'))
   if (isbnTd) { isbnTd.innerHTML = ''; isbnTd.appendChild(buildDisp(COLS.find(c=>c.key==='isbn'), isbn)) }
 
-  // Detecta se ISBN mudou — se sim, sobrescreve todos os campos
-  const isbnChanged = row._lastIsbn && row._lastIsbn !== isbn
-  row._lastIsbn = isbn
-
   try {
     const book = await getBookByISBN(isbn)
-    const isEmpty = v => !v || v === '-'
+    // Sempre sobrescreve quando há ISBN válido (registra no undo para desfazer)
     const fill = (key, val) => {
-      if (val && (isbnChanged || isEmpty(row[key]))) {
+      if (!val) return
+      const oldVal = row[key] || ''
+      if (oldVal !== val) {
+        pushUndo(ri, key, oldVal)
         row[key] = val
         markDirty(ri)
         const ci = COLS.findIndex(c => c.key === key)
@@ -610,13 +628,8 @@ async function isbnAutoFill(ri) {
       fill('authorship', book.autor)
       fill('suggested_text', book.sinopse)
     }
-    // Sempre preencher capa via Metabooks (sobrescreve mesmo se já tiver valor)
-    const coverUrl = METABOOKS_COVER_URL(isbn)
-    row.cover_link = coverUrl
-    markDirty(ri)
-    const coverCi = COLS.findIndex(c => c.key === 'cover_link')
-    const coverTd = getTd(ri, coverCi)
-    if (coverTd) { coverTd.innerHTML = ''; coverTd.appendChild(buildDisp(COLS[coverCi], coverUrl)) }
+    // Sempre preencher capa via Metabooks
+    fill('cover_link', METABOOKS_COVER_URL(isbn))
   } catch (e) {
     console.warn('ISBN lookup failed:', e)
   }
@@ -784,6 +797,34 @@ function addRow() {
   // Rola até a nova linha e abre o datepicker
   getTr(ri)?.scrollIntoView({ block: 'nearest' })
   activateCell(ri, DATE_CI)
+}
+
+// Campos de conteúdo que podem ser copiados/limpos
+const CONTENT_FIELDS = ['campaign_name','authorship','isbn','suggested_text','extra_info','promotional_period','cover_link','redirect_link']
+
+// Copia os campos da linha para a área interna (usar Ctrl+V para colar)
+function copyRow(ri) {
+  const row = rows[ri]; if (!row) return
+  copiedRow = {}
+  for (const f of CONTENT_FIELDS) copiedRow[f] = row[f] || ''
+  toast('Linha copiada (Ctrl+V para colar em outra)','ok')
+}
+
+// Cola os campos copiados na linha destino
+function pasteRow(ri) {
+  if (!copiedRow) return
+  const row = rows[ri]; if (!row) return
+  for (const f of CONTENT_FIELDS) {
+    const oldVal = row[f] || ''
+    const newVal = copiedRow[f] || ''
+    if (oldVal !== newVal) {
+      pushUndo(ri, f, oldVal)
+      row[f] = newVal
+    }
+  }
+  markDirty(ri)
+  buildTbody()
+  toast('Linha colada (Ctrl+Z para desfazer)','ok')
 }
 
 // Limpa apenas os campos de conteúdo da linha (preserva data, newsletter,

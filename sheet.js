@@ -52,6 +52,7 @@ let tpRi      = null
 let tpCi      = null
 let resizing  = null
 let undoStack = []   // pilha de undo: { rowId, key, oldVal }
+let copiedRow = null  // campos copiados de uma linha
 
 // ── DOM ───────────────────────────────────────────────────────────────────────
 const $ind     = document.getElementById('save-ind')
@@ -113,9 +114,20 @@ document.addEventListener('keydown', e => {
     if (tpRi !== null) { e.preventDefault(); hideTextPopup() }
   }
   if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
-    if (active || dpRi !== null || tpRi !== null) return
     e.preventDefault()
+    if (active) closeCell(active.ri, active.ci)
+    if (dpRi !== null) hideDp()
+    if (tpRi !== null) hideTextPopup()
     applyUndo()
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'v' && !e.shiftKey) {
+    if (active || tpRi !== null) return
+    if (!copiedRow) return
+    if (!activeKey) { toast('Clique em uma linha primeiro para colar','err'); return }
+    const ri = rows.findIndex(r => rowKey(r) === activeKey)
+    if (ri < 0) return
+    e.preventDefault()
+    pasteRow(ri)
   }
 })
 
@@ -228,6 +240,10 @@ function buildTr(row, ri, altWeek) {
   COLS.forEach((col, ci) => tr.appendChild(buildTd(row, ri, col, ci)))
 
   const tdA = document.createElement('td'); tdA.className = 'col-act'
+  const btnCopy = document.createElement('button')
+  btnCopy.className = 'btn-copy'; btnCopy.textContent = '⎘'; btnCopy.title = 'Copiar linha (Ctrl+V para colar)'
+  btnCopy.addEventListener('mousedown', e => { e.preventDefault(); copyRow(ri) })
+  tdA.appendChild(btnCopy)
   const btn = document.createElement('button')
   btn.className = 'btn-del'; btn.textContent = '✕'; btn.title = 'Limpar informações'
   btn.addEventListener('mousedown', e => { e.preventDefault(); clearRow(ri) })
@@ -509,15 +525,14 @@ async function isbnAutoFill(ri) {
   const isbnTd = getTd(ri, COLS.findIndex(c => c.key === 'isbn'))
   if (isbnTd) { isbnTd.innerHTML = ''; isbnTd.appendChild(buildDisp(COLS.find(c=>c.key==='isbn'), isbn)) }
 
-  // Detecta se ISBN mudou — se sim, sobrescreve todos os campos
-  const isbnChanged = row._lastIsbn && row._lastIsbn !== isbn
-  row._lastIsbn = isbn
-
   try {
     const book = await getBookByISBN(isbn)
-    const isEmpty = v => !v || v === '-'
+    // Sempre sobrescreve quando há ISBN válido (registra no undo)
     const fill = (key, val) => {
-      if (val && (isbnChanged || isEmpty(row[key]))) {
+      if (!val) return
+      const oldVal = row[key] || ''
+      if (oldVal !== val) {
+        pushUndo(ri, key, oldVal)
         row[key] = val
         markDirty(ri)
         const ci = COLS.findIndex(c => c.key === key)
@@ -530,12 +545,7 @@ async function isbnAutoFill(ri) {
       fill('authorship', book.autor)
       fill('suggested_text', book.sinopse)
     }
-    const coverUrl = METABOOKS_COVER_URL(isbn)
-    row.cover_link = coverUrl
-    markDirty(ri)
-    const coverCi = COLS.findIndex(c => c.key === 'cover_link')
-    const coverTd = getTd(ri, coverCi)
-    if (coverTd) { coverTd.innerHTML = ''; coverTd.appendChild(buildDisp(COLS[coverCi], coverUrl)) }
+    fill('cover_link', METABOOKS_COVER_URL(isbn))
   } catch (e) {
     console.warn('ISBN lookup failed:', e)
   }
@@ -658,6 +668,32 @@ async function saveAll() {
   if (!errs.length) localStorage.removeItem(AUTOSAVE_KEY)
   updateSaveBtn()
   errs.length ? toast('Erros: '+errs.join(' | '),'err') : toast('Salvo!','ok')
+}
+
+// Campos de conteúdo que podem ser copiados/limpos
+const CONTENT_FIELDS = ['campaign_name','authorship','isbn','suggested_text','extra_info','promotional_period','cover_link','redirect_link']
+
+function copyRow(ri) {
+  const row = rows[ri]; if (!row) return
+  copiedRow = {}
+  for (const f of CONTENT_FIELDS) copiedRow[f] = row[f] || ''
+  toast('Linha copiada (Ctrl+V para colar em outra)','ok')
+}
+
+function pasteRow(ri) {
+  if (!copiedRow) return
+  const row = rows[ri]; if (!row) return
+  for (const f of CONTENT_FIELDS) {
+    const oldVal = row[f] || ''
+    const newVal = copiedRow[f] || ''
+    if (oldVal !== newVal) {
+      pushUndo(ri, f, oldVal)
+      row[f] = newVal
+    }
+  }
+  markDirty(ri)
+  buildTbody()
+  toast('Linha colada (Ctrl+Z para desfazer)','ok')
 }
 
 // Limpa apenas os campos de conteúdo da linha (preserva data, newsletter,
