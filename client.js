@@ -236,8 +236,8 @@ function buildTr(row, ri, altWeek) {
 
   const tdA = document.createElement('td'); tdA.className = 'col-act'
   const btn = document.createElement('button')
-  btn.className = 'btn-del'; btn.textContent = '✕'; btn.title = 'Excluir'
-  btn.addEventListener('mousedown', e => { e.preventDefault(); deleteRow(ri) })
+  btn.className = 'btn-del'; btn.textContent = '✕'; btn.title = 'Limpar informações'
+  btn.addEventListener('mousedown', e => { e.preventDefault(); clearRow(ri) })
   tdA.appendChild(btn); tr.appendChild(tdA)
   return tr
 }
@@ -786,21 +786,25 @@ function addRow() {
   activateCell(ri, DATE_CI)
 }
 
-async function deleteRow(ri) {
-  if (!confirm('Excluir esta linha?')) return
-  const row = rows[ri]
-  if (row.id) {
-    try { await deleteBooking(row.id) }
-    catch(e) { toast('Erro ao excluir: '+e.message,'err'); return }
-  }
-  if (active?.ri === ri) { active = null }
+// Limpa apenas os campos de conteúdo da linha (preserva data, newsletter,
+// formato e status). Não apaga a linha do servidor.
+function clearRow(ri) {
+  const row = rows[ri]; if (!row) return
+  if (!confirm('Limpar as informações desta linha?')) return
+  if (active?.ri === ri) { closeCell(active.ri, active.ci); active = null }
   if (dpRi === ri) hideDp()
   if (tpRi === ri) hideTextPopup()
-  if (activeKey === rowKey(row)) activeKey = null
-  rows.splice(ri, 1)
-  dirty.delete(rowKey(row))
+
+  // Salva snapshot no undo para poder recuperar
+  const fields = ['campaign_name','authorship','isbn','suggested_text','extra_info','promotional_period','cover_link','redirect_link']
+  for (const f of fields) {
+    if (row[f]) pushUndo(ri, f, row[f])
+    row[f] = ''
+  }
+  delete row._lastIsbn
+  markDirty(ri)
   buildTbody()
-  updateSaveBtn()
+  toast('Informações limpas (Ctrl+Z para desfazer)','ok')
 }
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
