@@ -4,7 +4,16 @@ on:
   schedule:
     # 12h UTC = 9h BRT (UTC-3)
     - cron: '0 12 * * *'
-  workflow_dispatch:  # permite rodar manualmente na aba Actions
+  workflow_dispatch:
+    inputs:
+      verify_all:
+        description: 'Verificar TODOS os veiculados (backfill dos avisos em admin_notes)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
 
 jobs:
   sync:
@@ -20,4 +29,9 @@ jobs:
         env:
           GETRESPONSE_API_KEY: ${{ secrets.GETRESPONSE_API_KEY }}
           DIRECTUS_TOKEN: ${{ secrets.DIRECTUS_TOKEN }}
-        run: node scripts/sync-editions.mjs
+        run: |
+          if [ "${{ inputs.verify_all }}" = "true" ]; then
+            node scripts/sync-editions.mjs --verify-all
+          else
+            node scripts/sync-editions.mjs
+          fi

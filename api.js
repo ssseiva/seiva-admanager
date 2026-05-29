@@ -41,7 +41,7 @@ async function request(path, options = {}, _retried = false) {
 
 export async function getBookings(filters = {}) {
   const params = new URLSearchParams()
-  params.set('fields', 'id,date,newsletter,format,status,campaign_name,authorship,campaign,isbn,suggested_text,extra_info,promotional_period,cover_link,redirect_link,client_id')
+  params.set('fields', 'id,date,newsletter,format,status,campaign_name,authorship,campaign,isbn,suggested_text,extra_info,promotional_period,cover_link,redirect_link,admin_notes,client_id')
   params.set('limit', '-1')
   params.set('sort', 'date')
 

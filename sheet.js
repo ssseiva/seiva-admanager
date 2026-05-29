@@ -27,6 +27,7 @@ const COLS = [
   { key: 'cover_link',      label: 'Imagem',             w: 190, type: 'link' },
   { key: 'redirect_link',   label: 'Link Redirect',      w: 190, type: 'link' },
   { key: 'published_link',  label: 'Edição Publicada',   w: 190, type: 'link', readonly: true },
+  { key: 'admin_notes',     label: 'Avisos',             w: 260, type: 'longtext', readonly: true },
 ]
 const DATE_CI     = COLS.findIndex(c => c.type === 'date')
 const EDITABLE_CI = COLS.map((c,i) => c.type !== 'status' && !c.readonly ? i : -1).filter(i => i >= 0)
