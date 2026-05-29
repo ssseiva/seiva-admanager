@@ -31,6 +31,11 @@ const COLS = [
 const DATE_CI     = COLS.findIndex(c => c.type === 'date')
 const EDITABLE_CI = COLS.map((c,i) => c.type !== 'status' && !c.readonly ? i : -1).filter(i => i >= 0)
 
+// Em spots já veiculados, só o conteúdo é editável. Estes campos definem o
+// "slot" (data/newsletter/formato) e o status — ficam travados pra não quebrar
+// o casamento da edição usado no relatório de veiculação.
+const LOCKED_WHEN_VEICULADO = new Set(['date', 'newsletter', 'format', 'status'])
+
 // Todos os status disponíveis para o admin
 const STATUS_OPTS = [
   ['rascunho',  'Rascunho'],
@@ -633,8 +638,8 @@ function pickDate(ds) {
 function activateCell(ri, ci) {
   const col = COLS[ci]
   if (!col || col.readonly) return
-  // Linhas veiculadas são imutáveis
-  if (rows[ri]?.status === 'veiculado') return
+  // Veiculado: só conteúdo é editável (data/newsletter/formato/status travados)
+  if (rows[ri]?.status === 'veiculado' && LOCKED_WHEN_VEICULADO.has(col.key)) return
 
   if (col.type === 'date') {
     if (active) closeCell(active.ri, active.ci)
