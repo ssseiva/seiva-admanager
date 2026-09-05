@@ -15,6 +15,10 @@
       --text: #1c2128; --text-sec: #444; --text-dim: #57606a; --text-muted: #8c959f;
       --border: #d0d7de; --border-cell: #e8ecf0;
       --logo: #38a832; --btn-bg: #38a832; --btn-hover: #2e8f29;
+      --bg-veiculado: #f1f5f9; --bg-subtle: #f3f4f6; --bg-menu: #fff;
+      --bg-danger-soft: #fee2e2; --bg-accent-soft: #dbeafe;
+      --text-disabled: #c0c8d4; --text-danger: #b91c1c;
+      --shadow-soft: rgba(0,0,0,.12); --shadow-strong: rgba(0,0,0,.25);
     }
     html.dark {
       --bg: #161b22; --bg-alt: #1e2d1e; --bg-alt-hover: #2a3d2a;
@@ -23,6 +27,10 @@
       --text: #e6edf3; --text-sec: #c9d1d9; --text-dim: #8b949e; --text-muted: #6e7681;
       --border: #30363d; --border-cell: #21262d;
       --logo: #4ac244; --btn-bg: #2ea043; --btn-hover: #3fb950;
+      --bg-veiculado: #1a2029; --bg-subtle: #22272e; --bg-menu: #1c2128;
+      --bg-danger-soft: #3d1418; --bg-accent-soft: #1a2744;
+      --text-disabled: #484f58; --text-danger: #f85149;
+      --shadow-soft: rgba(0,0,0,.5); --shadow-strong: rgba(0,0,0,.7);
     }
 
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; }
@@ -103,7 +111,7 @@
     .status-editable .s-badge { cursor: pointer; }
     .status-editable:hover .s-badge { filter: brightness(0.93); }
 
-    .btn-del { background: none; border: none; cursor: pointer; padding: 4px 5px; opacity: 0; font-size: 12px; color: #b91c1c; }
+    .btn-del { background: none; border: none; cursor: pointer; padding: 4px 5px; opacity: 0; font-size: 12px; color: var(--text-danger); }
     .sheet-row:hover .btn-del { opacity: .5; }
     .btn-del:hover { opacity: 1 !important; }
     .btn-copy { background: none; border: none; cursor: pointer; padding: 4px 5px; opacity: 0; font-size: 13px; color: var(--text-dim); }
@@ -111,24 +119,24 @@
     .btn-copy:hover { opacity: 1 !important; color: #1a73e8; }
 
     /* Linha veiculada: imutável */
-    .row-veiculado td { background: #f1f5f9 !important; color: var(--text-muted); }
+    .row-veiculado td { background: var(--bg-veiculado) !important; color: var(--text-muted); }
     .row-veiculado td:hover { cursor: not-allowed; }
     .row-veiculado .btn-copy, .row-veiculado .btn-del { display: none !important; }
 
     /* Header da coluna Data: clicável pra ordenar */
     .th-sortable { cursor: pointer; user-select: none; }
-    .th-sortable:hover { background: #f3f4f6; }
+    .th-sortable:hover { background: var(--bg-subtle); }
 
     /* Filtro por empresa */
     .filter-select { padding: 6px 10px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--text); font-size: 13px; font-family: inherit; cursor: pointer; }
     .filter-select:hover { border-color: var(--text-muted); }
 
     /* Menu de contexto (botão direito do mouse) */
-    .ctx-menu { position: absolute; z-index: 9999; background: #fff; border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 6px 20px rgba(0,0,0,.12); padding: 4px 0; min-width: 180px; font-size: 13px; }
+    .ctx-menu { position: absolute; z-index: 9999; background: var(--bg-menu); border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 6px 20px var(--shadow-soft); padding: 4px 0; min-width: 180px; font-size: 13px; }
     .ctx-item { padding: 7px 14px; cursor: pointer; color: var(--text); }
-    .ctx-item:hover { background: #f3f4f6; }
-    .ctx-item.ctx-danger { color: #b91c1c; }
-    .ctx-item.ctx-danger:hover { background: #fee2e2; }
+    .ctx-item:hover { background: var(--bg-subtle); }
+    .ctx-item.ctx-danger { color: var(--text-danger); }
+    .ctx-item.ctx-danger:hover { background: var(--bg-danger-soft); }
     .ctx-sep { height: 1px; background: var(--border); margin: 4px 0; }
 
     #sheet-loading { padding: 56px; text-align: center; color: var(--text-muted); font-size: 14px; }
@@ -136,7 +144,7 @@
     /* ── Datepicker ── */
     .datepicker {
       position: fixed; background: var(--bg-popup); border: 1px solid var(--border);
-      border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.25);
+      border-radius: 8px; box-shadow: 0 8px 24px var(--shadow-strong);
       padding: 10px; z-index: 400; width: 230px; user-select: none;
     }
     .dp-hd { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
@@ -147,15 +155,15 @@
     .dp-wd { text-align: center; font-size: 10px; font-weight: 600; color: var(--text-muted); padding: 3px 0; }
     .dp-d { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-size: 12px; border-radius: 4px; transition: background .1s; color: var(--text); }
     .dp-d.dp-free    { cursor: pointer; }
-    .dp-d.dp-free:hover { background: #dbeafe; }
-    .dp-d.dp-blocked { color: #c0c8d4; cursor: default; }
+    .dp-d.dp-free:hover { background: var(--bg-accent-soft); }
+    .dp-d.dp-blocked { color: var(--text-disabled); cursor: default; }
     .dp-d.dp-today   { font-weight: 700; outline: 2px solid #0969da; outline-offset: -2px; }
     .dp-d.dp-sel     { background: #1a73e8 !important; color: #fff !important; font-weight: 700; border-radius: 50%; }
 
     /* ── Popup texto longo ── */
     .text-popup {
       position: fixed; background: var(--bg-popup); border: 1px solid var(--border);
-      border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.25);
+      border-radius: 8px; box-shadow: 0 8px 24px var(--shadow-strong);
       padding: 10px; z-index: 400; width: 380px;
     }
     .tp-label { font-size: 11px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px; }
