@@ -10,7 +10,7 @@ import { randomUUID } from 'crypto'
 import { readFileSync, writeFileSync } from 'fs'
 
 const DIRECTUS_URL = 'https://directus-production-afdd.up.railway.app'
-const ADMIN_TOKEN = 'ynOx8xSSe-PVHMUBIlz0nG9YetXgAxU5'
+const ADMIN_TOKEN = process.env.DIRECTUS_ADMIN_TOKEN
 
 async function req(method, path, body = null) {
   const res = await fetch(`${DIRECTUS_URL}${path}`, {

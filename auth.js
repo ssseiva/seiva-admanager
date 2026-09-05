@@ -78,45 +78,6 @@ export async function loginUnified(username, password) {
   return { role: 'anunciante' }
 }
 
-// Mantidos para compatibilidade
-export async function loginAnunciante(code) {
-  const trimmed = code.trim().toUpperCase()
-  const res = await fetch(
-    `${DIRECTUS_URL}/items/ad_clients?filter[access_code][_eq]=${encodeURIComponent(trimmed)}&filter[active][_eq]=true&fields=id,company_name,access_code`,
-    { headers: { Authorization: `Bearer ${SERVICE_TOKEN}` } }
-  )
-  if (!res.ok) throw new Error('Erro ao verificar código')
-  const data = await res.json()
-  if (!data.data?.length) throw new Error('Código inválido ou conta inativa')
-  const client = data.data[0]
-  saveSession({ role: 'anunciante', clientId: client.id, clientName: client.company_name, accessToken: SERVICE_TOKEN })
-  return client
-}
-
-export async function loginStaff(email, password) {
-  const res = await fetch(`${DIRECTUS_URL}/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
-  })
-  const data = await res.json()
-  if (!res.ok) throw new Error(data.errors?.[0]?.message || 'Credenciais inválidas')
-  const { access_token, refresh_token } = data.data
-  const meRes = await fetch(`${DIRECTUS_URL}/users/me?fields=id,email,first_name,role.name,role.id`, {
-    headers: { Authorization: `Bearer ${access_token}` },
-  })
-  const me = await meRes.json()
-  const roleName = me.data?.role?.name?.toLowerCase() || 'staff'
-  saveSession({
-    role: roleName === 'administrator' ? 'admin' : 'redator',
-    userId: me.data?.id,
-    userName: me.data?.first_name || email,
-    accessToken: access_token,
-    refreshToken: refresh_token,
-  })
-  return { role: roleName, name: me.data?.first_name }
-}
-
 // Refresh do token (staff)
 export async function refreshToken() {
   const session = getSession()

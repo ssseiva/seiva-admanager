@@ -118,7 +118,7 @@ function renderClients() {
     return `
       <tr>
         <td><strong>${c.company_name}</strong></td>
-        <td><code style="font-size:.8rem;background:var(--bg);padding:2px 6px;border-radius:3px;border:1px solid var(--border)">${c.username || c.access_code}</code></td>
+        <td><code style="font-size:.8rem;background:var(--bg);padding:2px 6px;border-radius:3px;border:1px solid var(--border)">${c.username || '—'}</code></td>
         <td class="text-muted">${c.contact_email || '—'}</td>
         <td><span class="badge ${c.active ? 'badge-aprovado' : 'badge-rejeitado'}">${c.active ? 'Ativo' : 'Inativo'}</span></td>
         <td class="text-muted">${quotaCount} cota${quotaCount !== 1 ? 's' : ''} · ${used} uso${used !== 1 ? 's' : ''}</td>
