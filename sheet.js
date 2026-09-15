@@ -447,12 +447,15 @@ const userPickedDates = new Set()
 const clearedDates   = new Set()
 
 // Lógica de exibição da data
+// - Data sempre visível pra linhas que vieram do banco (têm row.id).
+// - Só esconde pra linhas novas criadas nesta sessão (têm _tid) que ainda
+//   não têm campaign/isbn preenchido — pra não pré-comprometer uma data.
 function visibleVal(row, col) {
   if (col.type !== 'date') return row[col.key]
   const rk = rowKey(row)
   if (clearedDates.has(rk)) return ''
+  if (row.id) return row[col.key]        // sempre mostra pra rows do banco
   if (userPickedDates.has(rk)) return row[col.key]
-  if ((row.status || 'rascunho') !== 'rascunho') return row[col.key]
   if ((row.campaign_name || '').trim() || (row.isbn || '').trim()) return row[col.key]
   return ''
 }

@@ -452,16 +452,15 @@ const clearedDates = new Set()
 
 // Lógica de exibição da data:
 //  - Se foi "apagada" (clearedDates) → vazio
-//  - Se foi escolhida manualmente nesta sessão → mostra
-//  - Se status saiu de rascunho → mostra (já está comprometido)
-//  - Se ISBN ou campanha preenchidos → mostra
-//  - Senão → vazio
+//  - Se veio do banco (tem row.id) → sempre mostra
+//  - Se é linha nova (tem _tid) sem campanha/isbn → esconde pra não pré-comprometer
+//  - Senão → mostra
 function visibleVal(row, col) {
   if (col.type !== 'date') return row[col.key]
   const rk = rowKey(row)
   if (clearedDates.has(rk)) return ''
+  if (row.id) return row[col.key]        // sempre mostra pra rows do banco
   if (userPickedDates.has(rk)) return row[col.key]
-  if ((row.status || 'rascunho') !== 'rascunho') return row[col.key]
   if ((row.campaign_name || '').trim() || (row.isbn || '').trim()) return row[col.key]
   return ''
 }
