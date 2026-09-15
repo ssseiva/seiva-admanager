@@ -32,10 +32,11 @@ const COLS = [
 const DATE_CI     = COLS.findIndex(c => c.type === 'date')
 const EDITABLE_CI = COLS.map((c,i) => c.type !== 'status' && !c.readonly ? i : -1).filter(i => i >= 0)
 
-// Em spots já veiculados, só o conteúdo é editável. Estes campos definem o
-// "slot" (data/newsletter/formato) e o status — ficam travados pra não quebrar
-// o casamento da edição usado no relatório de veiculação.
-const LOCKED_WHEN_VEICULADO = new Set(['date', 'newsletter', 'format', 'status'])
+// Em spots já veiculados, o conteúdo é editável e o admin pode remanejar a
+// data (às vezes uma edição sai fora da programação e precisa ser corrigida).
+// Newsletter/formato/status seguem travados pra não quebrar o casamento com
+// o relatório de veiculação.
+const LOCKED_WHEN_VEICULADO = new Set(['newsletter', 'format', 'status'])
 
 // Todos os status disponíveis para o admin
 const STATUS_OPTS = [
@@ -877,6 +878,13 @@ async function saveAll() {
   dirty.clear()
   if (!errs.length) localStorage.removeItem(AUTOSAVE_KEY)
   updateSaveBtn()
+  // Após salvar, ordena por data ascendente (mais recente por último).
+  // Força sortDir=asc para que veiculados apareçam ordenados por data
+  // cronológica no fim, e re-renderiza cabeçalho e corpo.
+  sortDir = 'asc'
+  applySort()
+  buildThead()
+  buildTbody()
   errs.length ? toast('Erros: '+errs.join(' | '),'err') : toast('Salvo!','ok')
 }
 

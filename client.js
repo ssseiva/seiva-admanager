@@ -984,6 +984,11 @@ async function saveAll() {
   dirty.clear()
   if (!errs.length) localStorage.removeItem(AUTOSAVE_KEY)
   updateSaveBtn()
+  // Após salvar, ordena por data ascendente (mais recente por último)
+  sortDir = 'asc'
+  applySort()
+  buildThead()
+  buildTbody()
   errs.length ? toast('Erros: '+errs.join(' | '),'err') : toast('Salvo!','ok')
 }
 
