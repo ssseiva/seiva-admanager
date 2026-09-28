@@ -985,11 +985,19 @@ async function deleteRow(ri) {
   if (dpRi === ri) hideDp()
   if (tpRi === ri) hideTextPopup()
 
-  pushUndoDelete(row, ri)
+  // Deleta primeiro no servidor. Só remove local se der certo — antes
+  // removia local mesmo com erro, e ao dar F5 a linha "voltava" porque
+  // o banco ainda a tinha.
   if (row.id) {
-    try { await deleteBooking(row.id) }
-    catch (e) { console.warn('Falha ao deletar no servidor:', e); toast('Erro ao deletar no servidor','err') }
+    try {
+      await deleteBooking(row.id)
+    } catch (e) {
+      console.error('Falha ao deletar no servidor:', e)
+      alert(`Não foi possível deletar a linha do servidor.\n\nErro: ${e?.message || e}\n\nPode ser falta de permissão do seu login. A linha continua no banco — se você recarregar, ela volta.`)
+      return
+    }
   }
+  pushUndoDelete(row, ri)
   rows.splice(ri, 1)
   dirty.delete(rowKey(row))
   userPickedDates.delete(rowKey(row))
