@@ -481,7 +481,10 @@ function buildDisp(col, val) {
   return disp
 }
 
-function rowKey(row) { return String(row.id) }
+// Chave única por linha. Sem fallback pro _tid, linhas novas colidem todas
+// em "undefined" — dirty vira uma entrada só, deleteRow apaga todas as
+// outras da fila de dirty, e as linhas ficam órfãs sem serem salvas.
+function rowKey(row) { return String(row.id || row._tid || '') }
 
 // ── Sort ──────────────────────────────────────────────────────────────────────
 // Sort manual no admin: estado controlado por clique no header "Data"
@@ -826,11 +829,16 @@ function restoreAutosaveIfAny() {
       localStorage.removeItem(AUTOSAVE_KEY); return
     }
     for (const saved of backup.rows) {
-      const key = String(saved.id)
+      const key = String(saved.id || saved._tid || '')
+      if (!key) continue
       const idx = rows.findIndex(r => rowKey(r) === key)
       if (idx >= 0) {
         rows[idx] = { ...rows[idx], ...saved }
         dirty.add(rowKey(rows[idx]))
+      } else if (saved._tid) {
+        // Linha nova que ainda não foi salva no servidor
+        rows.push(saved)
+        dirty.add(rowKey(saved))
       }
     }
     sortAndRebuild()
@@ -874,7 +882,14 @@ async function saveAll() {
       cover_link: row.cover_link||'', redirect_link: row.redirect_link||'',
     }
     try {
-      await updateBooking(row.id, payload)
+      if (row.id) {
+        await updateBooking(row.id, payload)
+      } else {
+        // Linha nova (inserida via context menu) — precisa criar no servidor.
+        // client_id vem do template do insertRowAt.
+        const created = await createBooking({ ...payload, client_id: row.client_id })
+        if (created?.id) { row.id = created.id; delete row._tid }
+      }
       getTr(ri)?.classList.remove('row-dirty')
     } catch(e) { errs.push(`${row.date||'?'}: ${e.message}`) }
   }
